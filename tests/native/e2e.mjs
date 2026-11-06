@@ -113,7 +113,11 @@ async function scenario(name, body) {
   const started = Date.now();
   try { await body(dir); results.push({ name, ok: true, ms: Date.now() - started }); console.log(`✓ ${name}`); }
   catch (error) { results.push({ name, ok: false, error: error.message }); console.log(`✘ ${name}\n  ${error.message}`); }
-  finally { rmSync(dir, { recursive: true, force: true }); }
+  finally {
+    // Windows keeps the database files locked briefly after the app quits.
+    try { rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 }); }
+    catch (error) { console.log(`  (could not remove ${dir}: ${error.code}; left for the OS to clean)`); }
+  }
 }
 
 await scenario('create, edit, complete, and restart keep everything in SQLite', async dir => {
