@@ -183,6 +183,12 @@
           "markdownDescription": "Enables the create_project command without any pre-configured scope."
         },
         {
+          "description": "Enables the create_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-create-reminder",
+          "markdownDescription": "Enables the create_reminder command without any pre-configured scope."
+        },
+        {
           "description": "Enables the load_workspace command without any pre-configured scope.",
           "type": "string",
           "const": "allow-load-workspace",
@@ -195,10 +201,22 @@
           "markdownDescription": "Enables the update_project command without any pre-configured scope."
         },
         {
+          "description": "Enables the update_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-update-reminder",
+          "markdownDescription": "Enables the update_reminder command without any pre-configured scope."
+        },
+        {
           "description": "Denies the create_project command without any pre-configured scope.",
           "type": "string",
           "const": "deny-create-project",
           "markdownDescription": "Denies the create_project command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-create-reminder",
+          "markdownDescription": "Denies the create_reminder command without any pre-configured scope."
         },
         {
           "description": "Denies the load_workspace command without any pre-configured scope.",
@@ -211,6 +229,12 @@
           "type": "string",
           "const": "deny-update-project",
           "markdownDescription": "Denies the update_project command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the update_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-update-reminder",
+          "markdownDescription": "Denies the update_reminder command without any pre-configured scope."
         },
         {
           "description": "Default core plugins set.\n#### This default permission set includes:\n\n- `core:path:default`\n- `core:event:default`\n- `core:window:default`\n- `core:webview:default`\n- `core:app:default`\n- `core:image:default`\n- `core:resources:default`\n- `core:menu:default`\n- `core:tray:default`",

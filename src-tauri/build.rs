@@ -6,6 +6,8 @@ fn main() {
             "load_workspace",
             "create_project",
             "update_project",
+            "create_reminder",
+            "update_reminder",
         ]),
     ))
     .expect("failed to run tauri-build");

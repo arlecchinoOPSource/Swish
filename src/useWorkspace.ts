@@ -47,3 +47,10 @@ export function upsertProject(workspace: Workspace, project: Workspace['projects
     .sort((a, b) => a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   return { ...workspace, projects };
 }
+
+/** Inserts or replaces by ID, keeping creation order. A moved reminder keeps its place in time. */
+export function upsertReminder(workspace: Workspace, reminder: Workspace['reminders'][number]): Workspace {
+  const reminders = workspace.reminders.filter(r => r.id !== reminder.id).concat(reminder)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
+  return { ...workspace, reminders };
+}

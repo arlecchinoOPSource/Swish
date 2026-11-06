@@ -1,4 +1,4 @@
-import { checkProject, type Project, type ProjectInput, type StorageError, type Workspace } from './domain';
+import { checkProject, checkReminder, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError, type Workspace } from './domain';
 
 /**
  * Where projects and reminders live. `native` is the desktop app's SQLite file;
@@ -10,6 +10,8 @@ export interface SwishStorage {
   loadWorkspace(): Promise<Workspace>;
   createProject(input: ProjectInput): Promise<Project>;
   updateProject(id: string, input: ProjectInput): Promise<Project>;
+  createReminder(input: ReminderInput): Promise<Reminder>;
+  updateReminder(id: string, input: ReminderInput): Promise<Reminder>;
 }
 
 declare global {
@@ -29,6 +31,8 @@ class NativeStorage implements SwishStorage {
   loadWorkspace() { return this.call<Workspace>('load_workspace'); }
   createProject(input: ProjectInput) { return this.call<Project>('create_project', { input }); }
   updateProject(id: string, input: ProjectInput) { return this.call<Project>('update_project', { id, input }); }
+  createReminder(input: ReminderInput) { return this.call<Reminder>('create_reminder', { input }); }
+  updateReminder(id: string, input: ReminderInput) { return this.call<Reminder>('update_reminder', { id, input }); }
 }
 
 const previewFailure: StorageError = { code: 'storage', message: 'The browser preview simulated a storage failure. Nothing was changed.' };
@@ -66,6 +70,29 @@ export class PreviewStorage implements SwishStorage {
     Object.assign(project, clean, { updatedAt: this.now() });
     this.data.projects.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt));
     return structuredClone(project);
+  }
+  protected cleanReminder(input: ReminderInput): ReminderInput {
+    const clean = { projectId: input.projectId || null, title: input.title.trim(), text: input.text.trim(), dueDate: input.dueDate?.trim() || null };
+    const error = checkReminder(clean);
+    if (error) throw error;
+    if (clean.projectId && !this.data.projects.some(p => p.id === clean.projectId)) throw { code: 'invalid', field: 'projectId', message: 'Project no longer exists; choose another project or Regular Reminders.' } satisfies StorageError;
+    return clean;
+  }
+  async createReminder(input: ReminderInput) {
+    const clean = this.cleanReminder(input);
+    this.fault('write');
+    const now = this.now();
+    const reminder: Reminder = { id: crypto.randomUUID(), ...clean, completedAt: null, createdAt: now, updatedAt: now };
+    this.data.reminders.push(reminder);
+    return structuredClone(reminder);
+  }
+  async updateReminder(id: string, input: ReminderInput) {
+    const clean = this.cleanReminder(input);
+    this.fault('write');
+    const reminder = this.data.reminders.find(r => r.id === id);
+    if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
+    Object.assign(reminder, clean, { updatedAt: this.now() });
+    return structuredClone(reminder);
   }
 }
 

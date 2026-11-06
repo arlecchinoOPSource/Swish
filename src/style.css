@@ -32,3 +32,9 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .form-actions, .entity-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .project .destructive { width: 100%; }
 .project-description { white-space: pre-wrap; }
+.reminder-text { white-space: pre-wrap; }
+.date-row { display: flex; gap: 10px; align-items: center; }
+.date-row .suite-input { flex: 1; }
+.reminder.entity-form { border-color: var(--phosphor); }
+/* Never clip a form inside the scrolling list; the list grows while editing. */
+.project-reminders:has(form) { max-height: none; }
