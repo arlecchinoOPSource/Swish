@@ -26,6 +26,12 @@ export function App() {
     const error = await data.write(() => id ? storage.updateReminder(id, input) : storage.createReminder(input), (workspace, reminder) => { savedId = reminder.id; return upsertReminder(workspace, reminder); });
     return { error, id: savedId };
   }
+  async function setCompleted(id: string, completed: boolean) {
+    const error = await data.write(() => storage.setReminderCompleted(id, completed), upsertReminder);
+    // Feedback follows the stored result, not the click.
+    if (!error && completed) sounds.play('completion');
+    return error;
+  }
   function startCreate(next: Editing) { setPanel(null); setEditing(next); }
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
@@ -48,7 +54,7 @@ export function App() {
     {action('Themes', 'themes')}{action('Sounds', 'sounds')}
   </Rail>}>
     <IdentityStrip wordmark="Swish" />
-    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} />
+    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} setCompleted={setCompleted} />
     <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">

@@ -2,7 +2,7 @@
 
 A blue Arlecchino desktop app for projects and reminders. Build the identity first: UI, logo, sounds, and animations; then make the reminder system reliable. Version 2 brings the same experience to iPhone.
 
-**Status: repository foundation and native desktop foundation preview.** This is not a released or functional reminder app. The preview imports real shell/theme/motion primitives from a pinned [Arlecchino Core](https://github.com/arlecchinoOPSource/Arlecchino-Core) submodule. Reminder CRUD, native SQLite, remain planned. Native host, shared audio/preferences, sample canvas, and generated icon assets are present; release installers remain later work.
+**Status: pre-release desktop build.** Not a released app. Shell/theme/motion/audio primitives come from a pinned [Arlecchino Core](https://github.com/arlecchinoOPSource/Arlecchino-Core) submodule. Projects and reminders can be created, edited, and completed and are stored in local SQLite in the native app (see [implementation notes](docs/IMPLEMENTATION-7-10.md)); deletion, search, and backup are still planned, and release installers remain later work. The browser preview (`npm run dev:web`) keeps data in memory only and says so.
 
 ## Product and implementation guidance
 
@@ -19,7 +19,7 @@ npm ci
 npm run dev
 ```
 
-For an existing clone: `git submodule update --init --recursive` before installing. Private repository access is required. Use Node 24. Run `npm run check` for strict typechecking and a production web build. This preview has disabled product controls and no persistence; its status explicitly says so. Use `npm run dev:web` for browser-only preview, `npm run dev` for Tauri, and `npm run build:native` for a native binary.
+For an existing clone: `git submodule update --init --recursive` before installing. Private repository access is required. Use Node 24. Run `npm run check` for strict typechecking and a production web build. Run `cargo test --manifest-path src-tauri/Cargo.toml -p swish-data` for the storage tests. Use `npm run dev:web` for browser-only preview, `npm run dev` for Tauri, and `npm run build:native` for a native binary.
 
 Shared UI changes belong in Core. See the [integration contract](docs/ARCHITECTURE.md); do not fork shared styling inside this repository.
 

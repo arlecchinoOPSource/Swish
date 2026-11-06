@@ -58,6 +58,10 @@ test('playback rejection does not block navigation or completion', async ({ page
  await page.getByLabel('Project name').fill('Synthetic sound check'); await page.getByLabel('Project deadline').fill('2026-12-01');
  await page.getByRole('button',{name:'Create project',exact:true}).click();
  await expect(page.getByRole('heading',{name:'Synthetic sound check'})).toBeVisible();
+ await page.getByRole('button',{name:'New Reminder in Synthetic sound check'}).click();
+ await page.getByLabel('Reminder header').fill('Silent completion'); await page.getByRole('button',{name:'Create reminder',exact:true}).click();
+ const check = page.getByRole('checkbox',{name:'Complete Silent completion'});
+ await check.click(); await expect(check).toBeChecked();
  await page.getByRole('button',{name:'Settings',exact:true}).click();
  await expect(page.getByRole('combobox',{name:'Text size'})).toBeVisible();
 });
