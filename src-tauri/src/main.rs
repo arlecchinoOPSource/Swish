@@ -31,12 +31,21 @@ impl Storage {
     }
 }
 
-fn open_store(app: &tauri::App) -> Result<Store, ApiError> {
-    let dir = app
-        .path()
+/// Swish's own data directory (`com.arlecchino.swish`). Debug builds accept a
+/// `SWISH_DATA_DIR` override so native tests use throwaway folders; release builds
+/// ignore it.
+pub fn data_dir<R: tauri::Runtime>(app: &impl Manager<R>) -> Result<std::path::PathBuf, ApiError> {
+    #[cfg(debug_assertions)]
+    if let Some(dir) = std::env::var_os("SWISH_DATA_DIR") {
+        return Ok(dir.into());
+    }
+    app.path()
         .app_data_dir()
-        .map_err(|_| ApiError::from(Error::Io(std::io::Error::other("no app data directory"))))?;
-    Store::open(&dir.join(DATABASE_FILE)).map_err(ApiError::from)
+        .map_err(|_| ApiError::from(Error::Io(std::io::Error::other("no app data directory"))))
+}
+
+fn open_store(app: &tauri::App) -> Result<Store, ApiError> {
+    Store::open(&data_dir(app)?.join(DATABASE_FILE)).map_err(ApiError::from)
 }
 
 #[tauri::command]

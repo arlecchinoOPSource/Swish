@@ -10,3 +10,4 @@ target/
 *.mobileprovision
 playwright-report/
 test-results/
+native-e2e-report.json

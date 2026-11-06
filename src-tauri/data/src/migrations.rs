@@ -53,17 +53,7 @@ pub fn migrate(conn: &mut Connection) -> Result<i64, Error> {
 
 /// Migrates up to `target`. Public so tests can create older-schema fixtures.
 pub fn migrate_to(conn: &mut Connection, target: i64) -> Result<i64, Error> {
-    let app_id: i64 = conn.pragma_query_value(None, "application_id", |row| row.get(0))?;
-    let current = version(conn)?;
-    if app_id != APPLICATION_ID && (app_id != 0 || current != 0 || has_tables(conn)?) {
-        return Err(Error::ForeignDatabase);
-    }
-    if current > latest_version() {
-        return Err(Error::SchemaTooNew {
-            found: current,
-            supported: latest_version(),
-        });
-    }
+    let current = check(conn)?;
     for step in current..target.min(latest_version()) {
         let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         tx.execute_batch(MIGRATIONS[step as usize])?;
@@ -75,6 +65,24 @@ pub fn migrate_to(conn: &mut Connection, target: i64) -> Result<i64, Error> {
         tx.commit()?;
     }
     version(conn)
+}
+
+/// Read-only check that the file is Swish data this version can open. Runs before
+/// anything (journal mode, migrations) writes to the file, so refused files stay
+/// byte-for-byte unchanged. Returns the current schema version.
+pub fn check(conn: &Connection) -> Result<i64, Error> {
+    let app_id: i64 = conn.pragma_query_value(None, "application_id", |row| row.get(0))?;
+    let current = version(conn)?;
+    if app_id != APPLICATION_ID && (app_id != 0 || current != 0 || has_tables(conn)?) {
+        return Err(Error::ForeignDatabase);
+    }
+    if current > latest_version() {
+        return Err(Error::SchemaTooNew {
+            found: current,
+            supported: latest_version(),
+        });
+    }
+    Ok(current)
 }
 
 fn has_tables(conn: &Connection) -> Result<bool, Error> {

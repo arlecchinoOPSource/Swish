@@ -11,7 +11,7 @@ use serde::Serialize;
 use swish_data::backup::{self, Counts, ValidBackup};
 use swish_data::model::new_id;
 use swish_data::{ApiError, Error};
-use tauri::{AppHandle, Manager, State};
+use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
 use crate::Storage;
@@ -159,11 +159,7 @@ pub fn restore_backup(
             }));
         }
     };
-    let dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|_| io("no app data directory"))?
-        .join("backups");
+    let dir = crate::data_dir(&app)?.join("backups");
     let (restored, copy) = storage.with(|store| {
         // The safety copy must exist before anything is replaced.
         let copy = backup::write_safety_copy(&dir, &store.export_backup()?)?;

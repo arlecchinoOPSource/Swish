@@ -104,6 +104,56 @@ fn newer_schema_is_refused_instead_of_downgraded() {
 }
 
 #[test]
+fn refused_files_are_left_byte_for_byte_unchanged() {
+    let (path, _cleanup) = temp_db("untouched");
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let cases: [(&str, Box<dyn Fn(&std::path::Path)>); 3] = [
+        (
+            "foreign",
+            Box::new(|p| {
+                Connection::open(p)
+                    .unwrap()
+                    .execute_batch("CREATE TABLE journal (body TEXT);")
+                    .unwrap()
+            }),
+        ),
+        (
+            "newer",
+            Box::new(|p| {
+                Connection::open(p)
+                    .unwrap()
+                    .execute_batch(&format!(
+                        "PRAGMA application_id = {APPLICATION_ID}; PRAGMA user_version = 99;"
+                    ))
+                    .unwrap()
+            }),
+        ),
+        (
+            "corrupt",
+            Box::new(|p| std::fs::write(p, b"this is not a database ".repeat(400)).unwrap()),
+        ),
+    ];
+    for (name, make) in cases {
+        let _ = std::fs::remove_file(&path);
+        make(&path);
+        let before = std::fs::read(&path).unwrap();
+        assert!(Store::open(&path).is_err(), "{name} must be refused");
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            before,
+            "{name} file was modified"
+        );
+        let dir = path.parent().unwrap();
+        let extra: Vec<_> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|e| e.unwrap().file_name())
+            .filter(|n| n != swish_data::DATABASE_FILE)
+            .collect();
+        assert!(extra.is_empty(), "{name} left {extra:?}");
+    }
+}
+
+#[test]
 fn another_applications_database_is_never_adopted() {
     let (path, _cleanup) = temp_db("foreign");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();

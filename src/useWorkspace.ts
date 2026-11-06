@@ -8,6 +8,9 @@ export type WorkspaceState =
   | { status: 'error'; error: StorageError };
 
 /** Status of the most recent write. `saved` is set only after storage confirms the commit. */
+/** The stored value comes straight from storage, never from inside a React updater. */
+export type WriteResult<T> = { error: StorageError | null; value?: T };
+
 export type SaveState = { status: 'idle' } | { status: 'saving' } | { status: 'saved' } | { status: 'error'; error: StorageError };
 
 /** Loads the canvas from storage. A failed load is shown, never replaced by empty data. */
@@ -29,23 +32,23 @@ export function useWorkspace(storage: SwishStorage) {
    */
   const queue = useRef<Promise<unknown>>(Promise.resolve());
   const pending = useRef(0);
-  const write = useCallback(<T,>(run: () => Promise<T>, apply: (workspace: Workspace, value: T) => Workspace): Promise<StorageError | null> => {
+  const write = useCallback(<T,>(run: () => Promise<T>, apply: (workspace: Workspace, value: T) => Workspace): Promise<WriteResult<T>> => {
     pending.current += 1;
     setSave({ status: 'saving' });
-    const task = queue.current.then(async () => {
+    const task = queue.current.then(async (): Promise<WriteResult<T>> => {
       try {
         const value = await run();
         setState(current => current.status === 'ready' ? { status: 'ready', workspace: apply(current.workspace, value) } : current);
-        return null;
+        return { error: null, value };
       } catch (thrown) {
-        return toStorageError(thrown);
+        return { error: toStorageError(thrown) };
       }
-    }).then(error => {
+    }).then(result => {
       pending.current -= 1;
       // An error shows until a later write succeeds; each failed caller also keeps
       // its own inline error and retry.
-      setSave(error ? { status: 'error', error } : pending.current > 0 ? { status: 'saving' } : { status: 'saved' });
-      return error;
+      setSave(result.error ? { status: 'error', error: result.error } : pending.current > 0 ? { status: 'saving' } : { status: 'saved' });
+      return result;
     });
     queue.current = task;
     return task;
