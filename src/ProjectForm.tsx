@@ -1,12 +1,16 @@
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { checkProject, type ProjectInput, type StorageError } from './domain';
 
-type Props = { title: string; initial: ProjectInput; submitLabel: string; onSubmit: (input: ProjectInput) => Promise<StorageError | null>; onCancel: () => void };
+type Props = { title: string; initial: ProjectInput; submitLabel: string; onSubmit: (input: ProjectInput) => Promise<StorageError | null>; onCancel: () => void; onChange?: (values: ProjectInput) => void };
 
 /** Create/edit form. The draft stays in place after any failure so nothing typed is lost. */
-export function ProjectForm({ title, initial, submitLabel, onSubmit, onCancel }: Props) {
+export function ProjectForm({ title, initial, submitLabel, onSubmit, onCancel, onChange }: Props) {
   const id = useId();
   const [draft, setDraft] = useState(initial);
+  // Mirror every change so it can be recovered after a restart.
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => { report.current?.(draft); }, [draft]);
   const [error, setError] = useState<StorageError | null>(null);
   const [busy, setBusy] = useState(false);
   const fields = { name: useRef<HTMLInputElement>(null), description: useRef<HTMLTextAreaElement>(null), deadline: useRef<HTMLInputElement>(null) };

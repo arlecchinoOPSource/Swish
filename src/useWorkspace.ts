@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toStorageError, type StorageError, type Workspace } from './domain';
 import type { SwishStorage } from './storage';
 
@@ -22,21 +22,33 @@ export function useWorkspace(storage: SwishStorage) {
   useEffect(() => { void reload(); }, [reload]);
 
   /**
-   * Runs one write. The canvas changes only from what storage returns, so a failed
-   * write leaves both the canvas and the caller's draft untouched.
+   * Runs writes strictly one after another, in the order they were requested, so a
+   * later change can never be overtaken by an earlier one. The canvas changes only
+   * from what storage returns; a failed write leaves the canvas and the caller's draft
+   * untouched. "Saved" is shown only once every queued write has committed.
    */
-  const write = useCallback(async <T,>(run: () => Promise<T>, apply: (workspace: Workspace, value: T) => Workspace): Promise<StorageError | null> => {
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const pending = useRef(0);
+  const write = useCallback(<T,>(run: () => Promise<T>, apply: (workspace: Workspace, value: T) => Workspace): Promise<StorageError | null> => {
+    pending.current += 1;
     setSave({ status: 'saving' });
-    try {
-      const value = await run();
-      setState(current => current.status === 'ready' ? { status: 'ready', workspace: apply(current.workspace, value) } : current);
-      setSave({ status: 'saved' });
-      return null;
-    } catch (thrown) {
-      const error = toStorageError(thrown);
-      setSave({ status: 'error', error });
+    const task = queue.current.then(async () => {
+      try {
+        const value = await run();
+        setState(current => current.status === 'ready' ? { status: 'ready', workspace: apply(current.workspace, value) } : current);
+        return null;
+      } catch (thrown) {
+        return toStorageError(thrown);
+      }
+    }).then(error => {
+      pending.current -= 1;
+      // An error shows until a later write succeeds; each failed caller also keeps
+      // its own inline error and retry.
+      setSave(error ? { status: 'error', error } : pending.current > 0 ? { status: 'saving' } : { status: 'saved' });
       return error;
-    }
+    });
+    queue.current = task;
+    return task;
   }, []);
   return { state, save, reload, write };
 }
