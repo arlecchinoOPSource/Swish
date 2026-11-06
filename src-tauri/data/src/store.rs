@@ -42,6 +42,8 @@ impl Store {
         conn.busy_timeout(Duration::from_secs(5))?;
         conn.pragma_update(None, "foreign_keys", true)?;
         conn.pragma_update(None, "trusted_schema", false)?;
+        // Refuse foreign, newer, or unreadable files before changing anything in them.
+        migrations::check(&conn)?;
         if on_disk {
             conn.pragma_update(None, "journal_mode", "WAL")?;
             conn.pragma_update(None, "synchronous", "FULL")?;

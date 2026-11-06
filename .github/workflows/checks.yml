@@ -35,3 +35,66 @@ jobs:
       - run: npm run build:native -- -- --locked
       - run: npx playwright install chromium webkit
       - run: npm run test:ui
+  native-e2e:
+    # Drives the real desktop binary over WebDriver (tauri-driver) against throwaway
+    # data folders. Apple ships no WebDriver for WKWebView apps, so macOS is manual.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned Core commit
+        id: core
+        shell: bash
+        run: echo "sha=$(git rev-parse HEAD:vendor/arlecchino-core)" >> "$GITHUB_OUTPUT"
+      - name: Check out pinned private Core
+        uses: actions/checkout@v4
+        with:
+          repository: arlecchinoOPSource/Arlecchino-Core
+          ref: ${{ steps.core.outputs.sha }}
+          path: vendor/arlecchino-core
+          ssh-key: ${{ secrets.CORE_READ_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Linux WebKit and WebDriver
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev librsvg2-dev libayatana-appindicator3-dev webkit2gtk-driver xvfb
+      - name: Windows Edge WebDriver matching the installed WebView2
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool --locked
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+          "$PWD" | Out-File -FilePath $env:GITHUB_PATH -Append
+      - run: cargo install tauri-driver --locked
+      - run: npm ci
+      - run: npm run build
+      - run: cargo build --manifest-path src-tauri/Cargo.toml --features tauri/custom-protocol --locked
+      - name: Native end-to-end (Linux)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:native
+      - name: Native end-to-end (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue | Select-Object -Property pv
+          msedgedriver --version
+          $env:SWISH_EDGEDRIVER = (Get-Command msedgedriver).Source
+          npm run test:native
+          $code = $LASTEXITCODE
+          if (Test-Path msedgedriver.log) { Get-Content msedgedriver.log -Tail 120 }
+          exit $code
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-e2e-${{ matrix.os }}
+          path: |
+            native-e2e-report.json
+            msedgedriver.log
+          if-no-files-found: ignore

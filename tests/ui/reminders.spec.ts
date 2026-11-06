@@ -26,7 +26,7 @@ test('regular and project reminders share one card and form', async ({ page }) =
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Book rehearsal room' })).toBeFocused();
 
-  await page.getByRole('button', { name: 'New Regular Reminder' }).click();
+  await page.getByRole('button', { name: 'New Reminder in Regular Reminders' }).click();
   await expect(page.getByLabel('Project', { exact: true })).toHaveValue('');
   await fillReminder(page, 'Water the plants');
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();
@@ -86,7 +86,7 @@ test('moving a reminder keeps its identity and clearing the due date works', asy
 
 test('failed reminder save keeps every field for retry', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'New Regular Reminder' }).click();
+  await page.getByRole('button', { name: 'New Reminder in Regular Reminders' }).click();
   await fillReminder(page, 'Synthetic fragile', 'Do not lose this text', '2026-12-05');
   await page.evaluate(() => { window.__swishPreviewFault = 'write'; });
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();

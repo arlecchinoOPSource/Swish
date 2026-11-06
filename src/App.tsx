@@ -21,31 +21,28 @@ export function App() {
   const data = useWorkspace(storage);
   const [editing, setEditing] = useState<Editing>(null);
   async function saveProject(id: string | null, input: ProjectInput) {
-    let savedId: string | undefined;
-    const error = await data.write(() => id ? storage.updateProject(id, input) : storage.createProject(input), (workspace, project) => { savedId = project.id; return upsertProject(workspace, project); });
-    return { error, id: savedId };
+    const result = await data.write(() => id ? storage.updateProject(id, input) : storage.createProject(input), upsertProject);
+    return { error: result.error, id: result.value?.id };
   }
   async function saveReminder(id: string | null, input: ReminderInput) {
-    let savedId: string | undefined;
-    const error = await data.write(() => id ? storage.updateReminder(id, input) : storage.createReminder(input), (workspace, reminder) => { savedId = reminder.id; return upsertReminder(workspace, reminder); });
-    return { error, id: savedId };
+    const result = await data.write(() => id ? storage.updateReminder(id, input) : storage.createReminder(input), upsertReminder);
+    return { error: result.error, id: result.value?.id };
   }
   async function setCompleted(id: string, completed: boolean) {
-    const error = await data.write(() => storage.setReminderCompleted(id, completed), upsertReminder);
+    const { error } = await data.write(() => storage.setReminderCompleted(id, completed), upsertReminder);
     // Feedback follows the stored result, not the click.
     if (!error && completed) sounds.play('completion');
     return error;
   }
-  function deleteProject(id: string, expectedReminders: number) {
-    return data.write(() => storage.deleteProject(id, expectedReminders), (workspace, deleted) => removeProject(workspace, deleted.projectId));
+  async function deleteProject(id: string, expectedReminders: number) {
+    return (await data.write(() => storage.deleteProject(id, expectedReminders), (workspace, deleted) => removeProject(workspace, deleted.projectId))).error;
   }
   async function deleteReminder(id: string) {
-    let removed: Reminder | undefined;
-    const error = await data.write(() => storage.deleteReminder(id), (workspace, reminder) => { removed = reminder; return removeReminder(workspace, reminder.id); });
-    return { error, removed };
+    const result = await data.write(() => storage.deleteReminder(id), (workspace, reminder) => removeReminder(workspace, reminder.id));
+    return { error: result.error, removed: result.value };
   }
-  function restoreReminder(reminder: Reminder) {
-    return data.write(() => storage.restoreReminder(reminder), upsertReminder);
+  async function restoreReminder(reminder: Reminder) {
+    return (await data.write(() => storage.restoreReminder(reminder), upsertReminder)).error;
   }
   const [query, setQuery] = useState('');
   /** Closes Search and brings the matching item into view with keyboard focus. */

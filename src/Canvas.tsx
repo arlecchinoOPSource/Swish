@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { CompletionControl } from '@arlecchino/suite-ui';
 import { formatDate, progressOf, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError } from './domain';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -41,7 +41,15 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
   const today = useToday();
   const [drafts, setDrafts] = useState<Draft[]>(loadDrafts);
   const [draftsUnavailable, setDraftsUnavailable] = useState(false);
-  const putDrafts = (next: Draft[]) => { setDrafts(next); setDraftsUnavailable(!storeDrafts(next)); };
+  // Draft changes read the latest list through a ref, never a stale render's copy.
+  const draftsRef = useRef(drafts);
+  const putDrafts = (change: (current: Draft[]) => Draft[]) => {
+    const next = change(draftsRef.current);
+    if (next === draftsRef.current) return;
+    draftsRef.current = next;
+    setDrafts(next);
+    setDraftsUnavailable(!storeDrafts(next));
+  };
   const expireUndo = useCallback((hadFocus: boolean) => {
     // Deletion is now final. Keep keyboard users in the same section.
     if (undo && hadFocus) setFocusTarget(undo.projectId ? `new-reminder-${undo.projectId}` : 'new-regular-reminder');
@@ -67,16 +75,18 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
   function draftProps<V extends Draft['values']>(target: DraftTarget, baseline: V, label: (values: V) => string) {
     const key = draftKey(target);
     const forget = () => {
-      if (drafts.some(d => d.key === key)) putDrafts(drafts.filter(d => d.key !== key));
+      putDrafts(current => current.some(d => d.key === key) ? current.filter(d => d.key !== key) : current);
     };
     return {
       // A form always reopens with the typing it had, not the saved values.
       initial: (drafts.find(d => d.key === key)?.values as V | undefined) ?? baseline,
       onChange: (values: V) => {
         const dirty = JSON.stringify(values) !== JSON.stringify(baseline);
-        const others = drafts.filter(d => d.key !== key);
-        if (!dirty) { if (others.length !== drafts.length) putDrafts(others); return; }
-        putDrafts([...others, { key, target, values, label: label(values), savedAt: new Date().toISOString() } as Draft]);
+        putDrafts(current => {
+          const others = current.filter(d => d.key !== key);
+          if (!dirty) return others.length === current.length ? current : others;
+          return [...others, { key, target, values, label: label(values), savedAt: new Date().toISOString() } as Draft];
+        });
       },
       forget,
     };
@@ -115,7 +125,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
           onSubmit={async input => { const r = await saveReminder(null, input); if (!r.error) { d.forget(); closeEditor(`reminder-${r.id}`); } return r.error; }} />;
       })()}
       <div className="entity-actions">
-        <button id={opener} type="button" className="suite-button" disabled={creating} onClick={() => onEdit({ kind: 'new-reminder', projectId })} aria-label={projectId ? `New Reminder in ${label}` : 'New Regular Reminder'}>New Reminder</button>
+        <button id={opener} type="button" className="suite-button" disabled={creating} onClick={() => onEdit({ kind: 'new-reminder', projectId })} aria-label={projectId ? `New Reminder in ${label}` : 'New Reminder in Regular Reminders'}>New Reminder</button>
       </div>
     </>;
   };
@@ -131,7 +141,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
         {exists(d.target)
           ? <button type="button" className="suite-button primary" aria-label={`Reopen ${d.label}`} onClick={() => onEdit(d.target)}>Reopen</button>
           : <span className="result-context">— the item it belongs to no longer exists</span>}
-        <button type="button" className="suite-button" aria-label={`Discard ${d.label}`} onClick={() => putDrafts(drafts.filter(x => x.key !== d.key))}>Discard</button>
+        <button type="button" className="suite-button" aria-label={`Discard ${d.label}`} onClick={() => putDrafts(current => current.filter(x => x.key !== d.key))}>Discard</button>
       </li>)}</ul>
     </section>}
     {draftsUnavailable && <p className="form-error" role="alert">Unsaved typing cannot be kept on this device right now; save forms before closing Swish.</p>}

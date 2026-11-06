@@ -39,7 +39,7 @@ test('completion toggles by keyboard, keeps the reminder, and drives progress', 
 
 test('regular reminders complete with the same control and no project progress', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('button', { name: 'New Regular Reminder' }).click();
+  await page.getByRole('button', { name: 'New Reminder in Regular Reminders' }).click();
   await page.getByLabel('Reminder header').fill('Standalone');
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();
   const box = page.getByRole('checkbox', { name: 'Complete Standalone' });

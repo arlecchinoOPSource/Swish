@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function createReminder(page: Page, title: string, due = '') {
-  await page.getByRole('button', { name: 'New Regular Reminder' }).click();
+  await page.getByRole('button', { name: 'New Reminder in Regular Reminders' }).click();
   await page.getByLabel('Reminder header').fill(title);
   if (due) await page.getByLabel('Due date').fill(due);
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();
@@ -129,4 +129,22 @@ test('corrupt draft storage is ignored and Settings states there are no backgrou
   await expect(page.getByRole('region', { name: 'Unsaved changes kept on this device' })).toHaveCount(0);
   await page.getByRole('button', { name: 'Settings', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('does not send background alerts');
+});
+
+test('saving several reminders in a row leaves no recovered drafts behind', async ({ page }) => {
+  await page.goto('/');
+  for (const name of ['Keep', 'Other']) {
+    await page.getByRole('button', { name: 'New Project', exact: true }).click();
+    await page.getByLabel('Project name').fill(name);
+    await page.getByLabel('Project deadline').fill('2026-12-01');
+    await page.getByRole('button', { name: 'Create project', exact: true }).click();
+  }
+  for (const [title, project] of [['First', 'Keep'], ['Second', 'Other'], ['Third', 'Keep']]) {
+    await page.getByRole('button', { name: `New Reminder in ${project}` }).click();
+    await page.getByLabel('Reminder header').fill(title);
+    await page.getByRole('button', { name: 'Create reminder', exact: true }).click();
+    await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole('region', { name: 'Unsaved changes kept on this device' })).toHaveCount(0);
+  expect(await page.evaluate(() => localStorage.getItem('swish.drafts.v1'))).toBeNull();
 });
