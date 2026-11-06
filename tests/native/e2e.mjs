@@ -160,9 +160,14 @@ await scenario('search, reminder delete + undo, and project delete persist acros
       await s.until(`return !!document.querySelector('[aria-label="Complete ' + arguments[0] + '"]');`, title, 15000, title);
     }
     await s.click('Search');
-    await s.fill('Search projects and reminders', 'CAFE');
+    await s.until(`
+      const el = document.querySelector('input[aria-label="Search projects and reminders"]');
+      if (!el) return null;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, 'CAFE');
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      return true;`, 'search field');
     await s.until(`return document.querySelector('.search-results')?.innerText.includes('Café booking');`, 'accent-insensitive search');
-    await s.run(`document.querySelector('.search-result').click();`);
+    await s.keys('Enter');
     await s.until(`return document.activeElement?.textContent === 'Café booking';`, 'search navigation focus');
 
     await s.click('Delete reminder Undo me');

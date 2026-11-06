@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { spyOnAudio, started } from './audio-spy';
 
 /** Presses Tab until the focused element's accessible name matches; fails if unreachable. */
 async function tabTo(page: Page, name: string | RegExp, max = 120) {
@@ -129,7 +130,7 @@ for (const size of ['14', '24']) {
     for (const panel of ['Search', 'Settings', 'Sounds', 'Themes']) {
       await page.getByRole('button', { name: panel, exact: true }).click();
       await fits(`${panel} panel`);
-      await expect(page.getByRole('dialog').getByRole('button', { name: 'Close' })).toBeInViewport();
+      await expect(page.getByRole('dialog').getByRole('button', { name: /^Close (search|settings|sounds|themes)$/ })).toBeInViewport();
       await page.keyboard.press('Escape');
     }
     await page.getByRole('button', { name: /^Delete project Focus project/ }).click();
@@ -154,20 +155,18 @@ test('reduced motion removes transitions, animations, and smooth scrolling', asy
 });
 
 test('mute silences every cue; unmuted cues play', async ({ page }) => {
-  await page.addInitScript(() => {
-    (window as unknown as { plays: number }).plays = 0;
-    HTMLMediaElement.prototype.play = function () { (window as unknown as { plays: number }).plays++; return Promise.resolve(); };
-    localStorage.setItem('swish.preferences.v1', JSON.stringify({ startup: false, audio: { muted: true, volume: 80, startupSound: true, interfaceSound: true, sound: true } }));
-  });
+  await spyOnAudio(page);
+  await page.addInitScript(() => localStorage.setItem('swish.preferences.v1', JSON.stringify({ startup: false, audio: { enabled: false } })));
   await page.goto('/');
   await populate(page);
   await page.getByRole('checkbox', { name: 'Complete Alpha' }).click();
   for (const panel of ['Search', 'Themes']) { await page.getByRole('button', { name: panel, exact: true }).click(); await page.keyboard.press('Escape'); }
-  expect(await page.evaluate(() => (window as unknown as { plays: number }).plays)).toBe(0);
+  await page.waitForTimeout(400);
+  expect(await started(page)).toEqual([]);
 
   await page.getByRole('button', { name: 'Sounds', exact: true }).click();
-  await page.getByRole('checkbox', { name: 'Mute all sounds' }).uncheck();
+  await page.getByRole('switch', { name: 'Sound' }).check();
   await page.keyboard.press('Escape');
   await page.getByRole('checkbox', { name: 'Complete Beta' }).click();
-  await expect.poll(() => page.evaluate(() => (window as unknown as { plays: number }).plays)).toBeGreaterThan(0);
+  await expect.poll(async () => (await started(page)).includes('completion')).toBe(true);
 });

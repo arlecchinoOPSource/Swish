@@ -17,6 +17,7 @@ fn main() {
             "cancel_restore",
             "restore_backup",
             "undo_restore",
+            "finish_exit",
         ]),
     ))
     .expect("failed to run tauri-build");

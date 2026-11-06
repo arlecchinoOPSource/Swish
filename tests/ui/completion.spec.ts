@@ -6,7 +6,7 @@ async function setup(page: Page) {
   await page.getByLabel('Project name').fill('Synthetic progress');
   await page.getByLabel('Project deadline').fill('2026-12-31');
   await page.getByRole('button', { name: 'Create project', exact: true }).click();
-  await expect(page.getByText('No reminders to complete yet')).toBeVisible();
+  await expect(page.getByText('No reminders in this project yet.')).toBeVisible();
   for (const title of ['First step', 'Second step']) {
     await page.getByRole('button', { name: 'New Reminder in Synthetic progress' }).click();
     await page.getByLabel('Reminder header').fill(title);

@@ -107,7 +107,8 @@ fn newer_schema_is_refused_instead_of_downgraded() {
 fn refused_files_are_left_byte_for_byte_unchanged() {
     let (path, _cleanup) = temp_db("untouched");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    let cases: [(&str, Box<dyn Fn(&std::path::Path)>); 3] = [
+    type Make = Box<dyn Fn(&std::path::Path)>;
+    let cases: [(&str, Make); 3] = [
         (
             "foreign",
             Box::new(|p| {
