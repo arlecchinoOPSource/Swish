@@ -92,6 +92,7 @@ export function App() {
       <MotionControls value={prefs.motion} onChange={motion => update({...prefs,motion})} />
       <label className="suite-option"><input type="checkbox" checked={prefs.startup} onChange={e => update({...prefs,startup:e.target.checked})} />Startup screen</label>
       <p>Your system’s reduced-motion preference takes priority. Settings stay on this device.</p>
+      <p>Due dates and deadlines are shown inside Swish only. Swish does not send background alerts or notifications.</p>
       {preferenceError && <button className="suite-button" onClick={() => update(prefs)}>Retry saving preferences</button>}
       </>}
       </div>

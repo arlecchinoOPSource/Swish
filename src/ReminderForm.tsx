@@ -1,12 +1,16 @@
-import { useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { checkReminder, type Project, type ReminderInput, type StorageError } from './domain';
 
-type Props = { title: string; initial: ReminderInput; projects: Project[]; submitLabel: string; onSubmit: (input: ReminderInput) => Promise<StorageError | null>; onCancel: () => void };
+type Props = { title: string; initial: ReminderInput; projects: Project[]; submitLabel: string; onSubmit: (input: ReminderInput) => Promise<StorageError | null>; onCancel: () => void; onChange?: (values: ReminderInput) => void };
 
 /** One form for regular and project reminders. The draft survives every failure. */
-export function ReminderForm({ title, initial, projects, submitLabel, onSubmit, onCancel }: Props) {
+export function ReminderForm({ title, initial, projects, submitLabel, onSubmit, onCancel, onChange }: Props) {
   const id = useId();
   const [draft, setDraft] = useState(initial);
+  // Mirror every change so it can be recovered after a restart.
+  const report = useRef(onChange);
+  report.current = onChange;
+  useEffect(() => { report.current?.(draft); }, [draft]);
   const [error, setError] = useState<StorageError | null>(null);
   const [busy, setBusy] = useState(false);
   const fields = { title: useRef<HTMLInputElement>(null), text: useRef<HTMLTextAreaElement>(null), dueDate: useRef<HTMLInputElement>(null), projectId: useRef<HTMLSelectElement>(null) };
@@ -26,7 +30,7 @@ export function ReminderForm({ title, initial, projects, submitLabel, onSubmit, 
     <input id={`${id}-header`} ref={fields.title} className="suite-input" value={draft.title} maxLength={200} autoFocus aria-required="true" aria-invalid={invalid('title')} aria-describedby={describe('title')} onChange={e => setDraft({ ...draft, title: e.target.value })} />
     <label htmlFor={`${id}-text`}>Reminder text <span className="optional">(optional)</span></label>
     <textarea id={`${id}-text`} ref={fields.text} className="suite-input" rows={3} value={draft.text} maxLength={10000} aria-invalid={invalid('text')} aria-describedby={describe('text')} onChange={e => setDraft({ ...draft, text: e.target.value })} />
-    <label htmlFor={`${id}-due`}>Due date <span className="optional">(optional)</span></label>
+    <label htmlFor={`${id}-due`}>Due date <span className="optional">(optional — shown in Swish; no background alert)</span></label>
     <div className="date-row">
       <input id={`${id}-due`} ref={fields.dueDate} className="suite-input" type="date" min="1000-01-01" max="9999-12-31" value={draft.dueDate ?? ''} aria-invalid={invalid('dueDate')} aria-describedby={describe('dueDate')} onChange={e => setDraft({ ...draft, dueDate: e.target.value || null })} />
       {draft.dueDate && <button type="button" className="suite-button" onClick={() => setDraft({ ...draft, dueDate: null })}>Clear due date</button>}

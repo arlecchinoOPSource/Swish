@@ -63,3 +63,9 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .result-snippet { font-size: .85em; overflow-wrap: anywhere; }
 .search-results mark { background: var(--tint); color: var(--phosphor); outline: 1px solid var(--phosphor); text-decoration: underline; }
 [data-search-hit] { outline: 2px solid var(--phosphor); outline-offset: 4px; }
+.due[data-due='overdue'] { color: var(--danger); font-weight: 600; }
+.due[data-due='today'] { color: var(--amber, var(--phosphor)); font-weight: 600; }
+.recovered-drafts { border-color: var(--amber, var(--phosphor)); }
+.recovered-drafts ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.recovered-drafts li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.recovered-drafts li > span:first-child { flex: 1 1 200px; overflow-wrap: anywhere; }

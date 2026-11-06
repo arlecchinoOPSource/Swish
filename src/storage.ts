@@ -26,6 +26,10 @@ declare global {
     __TAURI_INTERNALS__?: unknown;
     /** Test hook for the browser preview only: make the next operation fail. */
     __swishPreviewFault?: 'load' | 'write' | null;
+    /** Test hook: preview writes take this many milliseconds. */
+    __swishPreviewDelay?: number;
+    /** Test hook: set to true if two preview writes ever overlap. */
+    __swishPreviewOverlap?: boolean;
   }
 }
 
@@ -55,6 +59,17 @@ export class PreviewStorage implements SwishStorage {
   protected fault(kind: 'load' | 'write') {
     if (window.__swishPreviewFault === kind) { window.__swishPreviewFault = null; throw previewFailure; }
   }
+  private busy = false;
+  /** Simulated write latency; flags overlapping writes, which the app must never issue. */
+  protected async writing() {
+    if (this.busy) window.__swishPreviewOverlap = true;
+    this.busy = true;
+    try {
+      const delay = window.__swishPreviewDelay ?? 0;
+      if (delay > 0) await new Promise(resolve => setTimeout(resolve, delay));
+      this.fault('write');
+    } finally { this.busy = false; }
+  }
   protected snapshot(): Workspace { return structuredClone(this.data); }
   async loadWorkspace() { this.fault('load'); return this.snapshot(); }
   protected now() { return new Date().toISOString(); }
@@ -66,7 +81,7 @@ export class PreviewStorage implements SwishStorage {
   }
   async createProject(input: ProjectInput) {
     const clean = this.cleanProject(input);
-    this.fault('write');
+    await this.writing();
     const now = this.now();
     const project: Project = { id: crypto.randomUUID(), ...clean, createdAt: now, updatedAt: now };
     this.data.projects.push(project);
@@ -75,7 +90,7 @@ export class PreviewStorage implements SwishStorage {
   }
   async updateProject(id: string, input: ProjectInput) {
     const clean = this.cleanProject(input);
-    this.fault('write');
+    await this.writing();
     const project = this.data.projects.find(p => p.id === id);
     if (!project) throw { code: 'notFound', message: 'That project no longer exists.' } satisfies StorageError;
     Object.assign(project, clean, { updatedAt: this.now() });
@@ -91,7 +106,7 @@ export class PreviewStorage implements SwishStorage {
   }
   async createReminder(input: ReminderInput) {
     const clean = this.cleanReminder(input);
-    this.fault('write');
+    await this.writing();
     const now = this.now();
     const reminder: Reminder = { id: crypto.randomUUID(), ...clean, completedAt: null, createdAt: now, updatedAt: now };
     this.data.reminders.push(reminder);
@@ -99,21 +114,21 @@ export class PreviewStorage implements SwishStorage {
   }
   async updateReminder(id: string, input: ReminderInput) {
     const clean = this.cleanReminder(input);
-    this.fault('write');
+    await this.writing();
     const reminder = this.data.reminders.find(r => r.id === id);
     if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
     Object.assign(reminder, clean, { updatedAt: this.now() });
     return structuredClone(reminder);
   }
   async setReminderCompleted(id: string, completed: boolean) {
-    this.fault('write');
+    await this.writing();
     const reminder = this.data.reminders.find(r => r.id === id);
     if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
     if (completed !== (reminder.completedAt !== null)) Object.assign(reminder, { completedAt: completed ? this.now() : null, updatedAt: this.now() });
     return structuredClone(reminder);
   }
   async deleteProject(id: string, expectedReminders: number) {
-    this.fault('write');
+    await this.writing();
     if (!this.data.projects.some(p => p.id === id)) throw { code: 'notFound', message: 'That project no longer exists.' } satisfies StorageError;
     const count = this.data.reminders.filter(r => r.projectId === id).length;
     if (count !== expectedReminders) throw { code: 'changed', message: `This project now has ${count} reminder${count === 1 ? '' : 's'}, not ${expectedReminders}. Nothing was deleted; review and confirm again.` } satisfies StorageError;
@@ -122,7 +137,7 @@ export class PreviewStorage implements SwishStorage {
     return { projectId: id, deletedReminders: count };
   }
   async deleteReminder(id: string) {
-    this.fault('write');
+    await this.writing();
     const reminder = this.data.reminders.find(r => r.id === id);
     if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
     this.data.reminders = this.data.reminders.filter(r => r.id !== id);
@@ -131,7 +146,7 @@ export class PreviewStorage implements SwishStorage {
   async restoreReminder(snapshot: Reminder) {
     if (snapshot.projectId && !this.data.projects.some(p => p.id === snapshot.projectId)) throw { code: 'invalid', field: 'projectId', message: 'Project was deleted, so this reminder cannot be restored into it.' } satisfies StorageError;
     const clean = this.cleanReminder(snapshot);
-    this.fault('write');
+    await this.writing();
     if (this.data.reminders.some(r => r.id === snapshot.id)) throw { code: 'changed', message: 'That reminder is already present. Nothing was changed.' } satisfies StorageError;
     const reminder: Reminder = { ...snapshot, ...clean, updatedAt: this.now() };
     this.data.reminders.push(reminder);
