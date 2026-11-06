@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { prefs, spyOnAudio, started } from './audio-spy';
+import { NO_PLAYBACK_REASON, noPlayback, prefs, spyOnAudio, started } from './audio-spy';
 
 async function addReminder(page: import('@playwright/test').Page, title: string) {
   await page.getByRole('button', { name: 'New Reminder in Regular Reminders' }).click();
@@ -9,7 +9,8 @@ async function addReminder(page: import('@playwright/test').Page, title: string)
 }
 
 test.describe('when audio may start at launch (as in the desktop app; simulated here)', () => {
-  test('sound is on by default and the shared startup sound plays once at launch', async ({ page }) => {
+  test('sound is on by default and the shared startup sound plays once at launch', async ({ page, browserName }) => {
+  test.skip(noPlayback(browserName), NO_PLAYBACK_REASON);
     await spyOnAudio(page, { allowAtLaunch: true });
     await page.goto('/');
     await expect.poll(() => started(page)).toEqual(['startup']);
@@ -27,7 +28,8 @@ test.describe('when audio may start at launch (as in the desktop app; simulated 
   });
 });
 
-test('interface clicks and completion play their shared cues', async ({ page }) => {
+test('interface clicks and completion play their shared cues', async ({ page, browserName }) => {
+  test.skip(noPlayback(browserName), NO_PLAYBACK_REASON);
   await spyOnAudio(page);
   await prefs(page, { startup: false });
   await page.goto('/');
@@ -38,7 +40,8 @@ test('interface clicks and completion play their shared cues', async ({ page }) 
   await expect.poll(async () => (await started(page)).filter(s => s === 'interface').length).toBeGreaterThan(1);
 });
 
-test('the master switch silences every cue; previews still play; each cue has its own switch', async ({ page }) => {
+test('the master switch silences every cue; previews still play; each cue has its own switch', async ({ page, browserName }) => {
+  test.skip(noPlayback(browserName), NO_PLAYBACK_REASON);
   await spyOnAudio(page);
   await prefs(page, { startup: false });
   await page.goto('/');

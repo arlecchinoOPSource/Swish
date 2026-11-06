@@ -47,3 +47,11 @@ export const prefs = (page: Page, value: object) => page.addInitScript(v => {
   sessionStorage.setItem('seeded', '1');
   localStorage.setItem('swish.preferences.v1', JSON.stringify(v));
 }, value);
+
+/**
+ * Playwright's WebKit build on Windows cannot play audio (recorded in PR #22). It is not
+ * a shipped engine: the Windows app uses WebView2 (Chromium) and the macOS app WebKit,
+ * both of which run these playback checks. Only playback assertions are excluded.
+ */
+export const NO_PLAYBACK_REASON = 'Windows WebKit cannot play audio; Windows ships WebView2 (Chromium) and macOS WebKit, both checked.';
+export const noPlayback = (browserName: string) => process.platform === 'win32' && browserName === 'webkit';

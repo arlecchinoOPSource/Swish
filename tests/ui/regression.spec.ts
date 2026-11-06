@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { spyOnAudio, started } from './audio-spy';
+import { noPlayback, spyOnAudio, started } from './audio-spy';
 
 /** Presses Tab until the focused element's accessible name matches; fails if unreachable. */
 /** WebKit, like Safari, moves Tab between fields only; Option+Tab reaches every control. */
@@ -161,7 +161,7 @@ test('reduced motion removes transitions, animations, and smooth scrolling', asy
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).scrollBehavior)).not.toBe('smooth');
 });
 
-test('mute silences every cue; unmuted cues play', async ({ page }) => {
+test('mute silences every cue; unmuted cues play', async ({ page, browserName }) => {
   await spyOnAudio(page);
   await page.addInitScript(() => localStorage.setItem('swish.preferences.v1', JSON.stringify({ startup: false, audio: { enabled: false } })));
   await page.goto('/');
@@ -175,5 +175,6 @@ test('mute silences every cue; unmuted cues play', async ({ page }) => {
   await page.getByRole('switch', { name: 'Sound' }).check();
   await page.keyboard.press('Escape');
   await page.getByRole('checkbox', { name: 'Complete Beta' }).click();
-  await expect.poll(async () => (await started(page)).includes('completion')).toBe(true);
+  // Silence is checked on every engine; hearing the cue needs an engine that can play audio.
+  if (!noPlayback(browserName)) await expect.poll(async () => (await started(page)).includes('completion')).toBe(true);
 });
