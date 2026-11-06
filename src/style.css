@@ -1,0 +1,7 @@
+.swish-shell .workspace { grid-template-rows: auto minmax(0, 1fr) auto; }
+.swish-canvas { min-height: 0; overflow: auto; padding: clamp(16px, 4vw, 56px); border: 1px solid var(--line-2); background: var(--panel); }
+.preview-notice, .project { max-width: 960px; margin: 0 auto 24px; }
+.project { border: 1px solid var(--line-2); padding: 24px; }
+h1, h2 { font: 700 1rem/1.5 var(--font-display); color: var(--phosphor); }
+p { overflow-wrap: anywhere; }
+.empty-state { color: var(--text-2); border-top: 1px solid var(--line); padding-top: 20px; }

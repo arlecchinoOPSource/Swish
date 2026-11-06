@@ -1,0 +1,3 @@
+[submodule "vendor/arlecchino-core"]
+	path = vendor/arlecchino-core
+	url = https://github.com/arlecchinoOPSource/Arlecchino-Core.git

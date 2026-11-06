@@ -1,0 +1,28 @@
+name: Swish checks
+# Enable push/pull_request only after the owner authorizes CORE_READ_KEY.
+on: workflow_dispatch
+permissions:
+  contents: read
+jobs:
+  web-foundation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read pinned Core commit
+        id: core
+        run: echo "sha=$(git rev-parse HEAD:vendor/arlecchino-core)" >> "$GITHUB_OUTPUT"
+      - name: Check out pinned private Core
+        uses: actions/checkout@v4
+        with:
+          repository: arlecchinoOPSource/Arlecchino-Core
+          ref: ${{ steps.core.outputs.sha }}
+          path: vendor/arlecchino-core
+          ssh-key: ${{ secrets.CORE_READ_KEY }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test --prefix vendor/arlecchino-core

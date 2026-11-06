@@ -1,0 +1,17 @@
+name: Scoped change
+description: Propose one reviewable change
+title: "feature: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: User problem and intended outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria, dependencies, and evidence
+    validations:
+      required: true
