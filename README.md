@@ -2,7 +2,7 @@
 
 A blue Arlecchino desktop app for projects and reminders. Build the identity first: UI, logo, sounds, and animations; then make the reminder system reliable. Version 2 brings the same experience to iPhone.
 
-**Status: repository foundation and native desktop foundation preview.** This is not a released or functional reminder app. The preview imports real shell/theme/motion primitives from a pinned [Arlecchino Core](https://github.com/arlecchinoOPSource/Arlecchino-Core) submodule. Reminder CRUD, native SQLite, and shared audio remain planned. Native host and generated icon assets are present; release installers remain later work.
+**Status: repository foundation and native desktop foundation preview.** This is not a released or functional reminder app. The preview imports real shell/theme/motion primitives from a pinned [Arlecchino Core](https://github.com/arlecchinoOPSource/Arlecchino-Core) submodule. Reminder CRUD, native SQLite, remain planned. Native host, shared audio/preferences, sample canvas, and generated icon assets are present; release installers remain later work.
 
 ## Product and implementation guidance
 
