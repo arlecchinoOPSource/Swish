@@ -3,8 +3,8 @@
 use std::sync::Mutex;
 
 use swish_data::{
-    ApiError, DATABASE_FILE, Error, Project, ProjectInput, Reminder, ReminderInput, Store,
-    Workspace,
+    ApiError, DATABASE_FILE, DeletedProject, Error, Project, ProjectInput, Reminder, ReminderInput,
+    Store, Workspace,
 };
 use tauri::{Manager, State};
 
@@ -79,6 +79,25 @@ fn set_reminder_completed(
     storage.with(|store| store.set_completed(&id, completed))
 }
 
+#[tauri::command]
+fn delete_project(
+    storage: State<'_, Storage>,
+    id: String,
+    expected_reminders: u32,
+) -> Result<DeletedProject, ApiError> {
+    storage.with(|store| store.delete_project(&id, expected_reminders))
+}
+
+#[tauri::command]
+fn delete_reminder(storage: State<'_, Storage>, id: String) -> Result<Reminder, ApiError> {
+    storage.with(|store| store.delete_reminder(&id))
+}
+
+#[tauri::command]
+fn restore_reminder(storage: State<'_, Storage>, reminder: Reminder) -> Result<Reminder, ApiError> {
+    storage.with(|store| store.restore_reminder(&reminder))
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -92,7 +111,10 @@ fn main() {
             update_project,
             create_reminder,
             update_reminder,
-            set_reminder_completed
+            set_reminder_completed,
+            delete_project,
+            delete_reminder,
+            restore_reminder
         ])
         .run(tauri::generate_context!())
         .expect("Swish could not start");

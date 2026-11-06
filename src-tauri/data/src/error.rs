@@ -26,6 +26,10 @@ pub enum Error {
     NotFound {
         entity: &'static str,
     },
+    /// Stored data no longer matches what the user confirmed; nothing was changed.
+    Changed {
+        message: String,
+    },
     /// The file was written by a newer Swish; refuse rather than corrupt it.
     SchemaTooNew {
         found: i64,
@@ -56,6 +60,7 @@ impl Error {
         match self {
             Error::Invalid { .. } => "invalid",
             Error::NotFound { .. } => "notFound",
+            Error::Changed { .. } => "changed",
             Error::SchemaTooNew { .. } => "schemaTooNew",
             Error::ForeignDatabase => "foreignDatabase",
             Error::Storage(_) | Error::Io(_) => "storage",
@@ -80,6 +85,7 @@ impl fmt::Display for Error {
                 write!(f, "{label} {message}.")
             }
             Error::NotFound { entity } => write!(f, "That {entity} no longer exists."),
+            Error::Changed { message } => write!(f, "{message}"),
             Error::SchemaTooNew { found, supported } => write!(
                 f,
                 "This data was saved by a newer version of Swish (schema {found}; this version supports {supported}). Update Swish to open it."

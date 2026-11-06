@@ -54,3 +54,11 @@ export function upsertReminder(workspace: Workspace, reminder: Workspace['remind
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
   return { ...workspace, reminders };
 }
+
+export function removeProject(workspace: Workspace, projectId: string): Workspace {
+  return { projects: workspace.projects.filter(p => p.id !== projectId), reminders: workspace.reminders.filter(r => r.projectId !== projectId) };
+}
+
+export function removeReminder(workspace: Workspace, reminderId: string): Workspace {
+  return { ...workspace, reminders: workspace.reminders.filter(r => r.id !== reminderId) };
+}

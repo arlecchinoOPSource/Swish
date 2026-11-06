@@ -10,8 +10,8 @@ pub const NAME_MAX: usize = 200;
 pub const TITLE_MAX: usize = 200;
 pub const BODY_MAX: usize = 10_000;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Project {
     pub id: String,
     pub name: String,
@@ -22,8 +22,9 @@ pub struct Project {
     pub updated_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
+/// Also deserialized (strictly) when restoring a deleted reminder or a backup.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct Reminder {
     pub id: String,
     pub project_id: Option<String>,

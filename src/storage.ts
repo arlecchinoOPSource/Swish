@@ -1,4 +1,4 @@
-import { checkProject, checkReminder, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError, type Workspace } from './domain';
+import { checkProject, checkReminder, type DeletedProject, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError, type Workspace } from './domain';
 
 /**
  * Where projects and reminders live. `native` is the desktop app's SQLite file;
@@ -13,6 +13,12 @@ export interface SwishStorage {
   createReminder(input: ReminderInput): Promise<Reminder>;
   updateReminder(id: string, input: ReminderInput): Promise<Reminder>;
   setReminderCompleted(id: string, completed: boolean): Promise<Reminder>;
+  /** Deletes the project and its reminders only if it still has `expectedReminders`. */
+  deleteProject(id: string, expectedReminders: number): Promise<DeletedProject>;
+  /** Deletes a reminder and returns it for Undo. */
+  deleteReminder(id: string): Promise<Reminder>;
+  /** Restores a deleted reminder with its original ID and history. */
+  restoreReminder(reminder: Reminder): Promise<Reminder>;
 }
 
 declare global {
@@ -35,6 +41,9 @@ class NativeStorage implements SwishStorage {
   createReminder(input: ReminderInput) { return this.call<Reminder>('create_reminder', { input }); }
   updateReminder(id: string, input: ReminderInput) { return this.call<Reminder>('update_reminder', { id, input }); }
   setReminderCompleted(id: string, completed: boolean) { return this.call<Reminder>('set_reminder_completed', { id, completed }); }
+  deleteProject(id: string, expectedReminders: number) { return this.call<DeletedProject>('delete_project', { id, expectedReminders }); }
+  deleteReminder(id: string) { return this.call<Reminder>('delete_reminder', { id }); }
+  restoreReminder(reminder: Reminder) { return this.call<Reminder>('restore_reminder', { reminder }); }
 }
 
 const previewFailure: StorageError = { code: 'storage', message: 'The browser preview simulated a storage failure. Nothing was changed.' };
@@ -101,6 +110,32 @@ export class PreviewStorage implements SwishStorage {
     const reminder = this.data.reminders.find(r => r.id === id);
     if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
     if (completed !== (reminder.completedAt !== null)) Object.assign(reminder, { completedAt: completed ? this.now() : null, updatedAt: this.now() });
+    return structuredClone(reminder);
+  }
+  async deleteProject(id: string, expectedReminders: number) {
+    this.fault('write');
+    if (!this.data.projects.some(p => p.id === id)) throw { code: 'notFound', message: 'That project no longer exists.' } satisfies StorageError;
+    const count = this.data.reminders.filter(r => r.projectId === id).length;
+    if (count !== expectedReminders) throw { code: 'changed', message: `This project now has ${count} reminder${count === 1 ? '' : 's'}, not ${expectedReminders}. Nothing was deleted; review and confirm again.` } satisfies StorageError;
+    this.data.projects = this.data.projects.filter(p => p.id !== id);
+    this.data.reminders = this.data.reminders.filter(r => r.projectId !== id);
+    return { projectId: id, deletedReminders: count };
+  }
+  async deleteReminder(id: string) {
+    this.fault('write');
+    const reminder = this.data.reminders.find(r => r.id === id);
+    if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
+    this.data.reminders = this.data.reminders.filter(r => r.id !== id);
+    return structuredClone(reminder);
+  }
+  async restoreReminder(snapshot: Reminder) {
+    if (snapshot.projectId && !this.data.projects.some(p => p.id === snapshot.projectId)) throw { code: 'invalid', field: 'projectId', message: 'Project was deleted, so this reminder cannot be restored into it.' } satisfies StorageError;
+    const clean = this.cleanReminder(snapshot);
+    this.fault('write');
+    if (this.data.reminders.some(r => r.id === snapshot.id)) throw { code: 'changed', message: 'That reminder is already present. Nothing was changed.' } satisfies StorageError;
+    const reminder: Reminder = { ...snapshot, ...clean, updatedAt: this.now() };
+    this.data.reminders.push(reminder);
+    this.data.reminders.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return structuredClone(reminder);
   }
 }

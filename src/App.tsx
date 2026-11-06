@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, Rail, BrandMark, IdentityStrip, StatusBar, IconButton, SvgIcon, Popover, type StatusTone, applyTheme, applyMotion, effectiveMotion, createSoundManager, bindSoundLifecycle, ThemeControls, SoundControls, MotionControls, StartupScreen } from '@arlecchino/suite-ui';
 import { loadPreferences, KEY, type Preferences } from './preferences';
 import { Canvas, type Editing } from './Canvas';
-import type { ProjectInput, ReminderInput } from './domain';
+import type { ProjectInput, Reminder, ReminderInput } from './domain';
 import { createStorage } from './storage';
-import { upsertProject, upsertReminder, useWorkspace, type SaveState } from './useWorkspace';
+import { removeProject, removeReminder, upsertProject, upsertReminder, useWorkspace, type SaveState } from './useWorkspace';
 const sounds = createSoundManager();
 const storage = createStorage();
 type Panel = 'Search' | 'Create' | 'Themes' | 'Sounds' | 'Settings';
@@ -32,6 +32,17 @@ export function App() {
     if (!error && completed) sounds.play('completion');
     return error;
   }
+  function deleteProject(id: string, expectedReminders: number) {
+    return data.write(() => storage.deleteProject(id, expectedReminders), (workspace, deleted) => removeProject(workspace, deleted.projectId));
+  }
+  async function deleteReminder(id: string) {
+    let removed: Reminder | undefined;
+    const error = await data.write(() => storage.deleteReminder(id), (workspace, reminder) => { removed = reminder; return removeReminder(workspace, reminder.id); });
+    return { error, removed };
+  }
+  function restoreReminder(reminder: Reminder) {
+    return data.write(() => storage.restoreReminder(reminder), upsertReminder);
+  }
   function startCreate(next: Editing) { setPanel(null); setEditing(next); }
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
@@ -54,7 +65,7 @@ export function App() {
     {action('Themes', 'themes')}{action('Sounds', 'sounds')}
   </Rail>}>
     <IdentityStrip wordmark="Swish" />
-    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} setCompleted={setCompleted} />
+    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} setCompleted={setCompleted} deleteProject={deleteProject} deleteReminder={deleteReminder} restoreReminder={restoreReminder} />
     <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">

@@ -189,10 +189,28 @@
           "markdownDescription": "Enables the create_reminder command without any pre-configured scope."
         },
         {
+          "description": "Enables the delete_project command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-project",
+          "markdownDescription": "Enables the delete_project command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the delete_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-delete-reminder",
+          "markdownDescription": "Enables the delete_reminder command without any pre-configured scope."
+        },
+        {
           "description": "Enables the load_workspace command without any pre-configured scope.",
           "type": "string",
           "const": "allow-load-workspace",
           "markdownDescription": "Enables the load_workspace command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the restore_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-restore-reminder",
+          "markdownDescription": "Enables the restore_reminder command without any pre-configured scope."
         },
         {
           "description": "Enables the set_reminder_completed command without any pre-configured scope.",
@@ -225,10 +243,28 @@
           "markdownDescription": "Denies the create_reminder command without any pre-configured scope."
         },
         {
+          "description": "Denies the delete_project command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-project",
+          "markdownDescription": "Denies the delete_project command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-delete-reminder",
+          "markdownDescription": "Denies the delete_reminder command without any pre-configured scope."
+        },
+        {
           "description": "Denies the load_workspace command without any pre-configured scope.",
           "type": "string",
           "const": "deny-load-workspace",
           "markdownDescription": "Denies the load_workspace command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the restore_reminder command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-restore-reminder",
+          "markdownDescription": "Denies the restore_reminder command without any pre-configured scope."
         },
         {
           "description": "Denies the set_reminder_completed command without any pre-configured scope.",
