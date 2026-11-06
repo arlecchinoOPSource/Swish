@@ -116,6 +116,16 @@ test('every Tab stop has a visible, unobscured focus indicator', async ({ page }
   await checkFocusRing(page);
 });
 
+test('focus stays clear of the undo bar even where scroll-padding is ignored (as in WebKit)', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 520 });
+  await page.goto('/');
+  await populate(page);
+  await page.addStyleTag({ content: '.swish-canvas { scroll-padding-bottom: 0 !important; }' });
+  await page.getByRole('button', { name: 'Delete reminder Beta' }).click();
+  await page.getByRole('heading', { name: 'Projects' }).click();
+  await checkFocusRing(page);
+});
+
 for (const size of ['14', '24']) {
   test(`text size ${size}px fits the minimum 480×400 window in every state`, async ({ page }) => {
     await page.setViewportSize({ width: 480, height: 400 });

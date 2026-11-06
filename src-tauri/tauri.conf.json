@@ -13,6 +13,7 @@
     "windows": [
       {
         "label": "main",
+        "create": false,
         "title": "Swish \u2014 Arlecchino",
         "width": 1100,
         "height": 780,
