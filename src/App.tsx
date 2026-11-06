@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, Rail, BrandMark, IdentityStrip, StatusBar, IconButton, SvgIcon, Popover, type StatusTone, applyTheme, applyMotion, effectiveMotion, createSoundManager, bindSoundLifecycle, ThemeControls, SoundControls, MotionControls, StartupScreen } from '@arlecchino/suite-ui';
 import { loadPreferences, KEY, type Preferences } from './preferences';
 import { Canvas, type Editing } from './Canvas';
-import type { ProjectInput } from './domain';
+import type { ProjectInput, ReminderInput } from './domain';
 import { createStorage } from './storage';
-import { upsertProject, useWorkspace, type SaveState } from './useWorkspace';
+import { upsertProject, upsertReminder, useWorkspace, type SaveState } from './useWorkspace';
 const sounds = createSoundManager();
 const storage = createStorage();
 type Panel = 'Search' | 'Create' | 'Themes' | 'Sounds' | 'Settings';
@@ -21,7 +21,12 @@ export function App() {
     const error = await data.write(() => id ? storage.updateProject(id, input) : storage.createProject(input), (workspace, project) => { savedId = project.id; return upsertProject(workspace, project); });
     return { error, id: savedId };
   }
-  function startCreate(kind: 'new-project') { setPanel(null); setEditing({ kind }); }
+  async function saveReminder(id: string | null, input: ReminderInput) {
+    let savedId: string | undefined;
+    const error = await data.write(() => id ? storage.updateReminder(id, input) : storage.createReminder(input), (workspace, reminder) => { savedId = reminder.id; return upsertReminder(workspace, reminder); });
+    return { error, id: savedId };
+  }
+  function startCreate(next: Editing) { setPanel(null); setEditing(next); }
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
     try { localStorage.setItem(KEY, JSON.stringify(next)); setPreferenceError(false); } catch { setPreferenceError(true); }
@@ -43,11 +48,11 @@ export function App() {
     {action('Themes', 'themes')}{action('Sounds', 'sounds')}
   </Rail>}>
     <IdentityStrip wordmark="Swish" />
-    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} />
+    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} />
     <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">
-      {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <><label htmlFor="search">Search reminders</label><input id="search" className="suite-input" type="search" placeholder="Project, title, or text" /><p>No saved reminders to search yet.</p></> : panel === 'Create' ? <><button className="suite-button primary" onClick={() => startCreate('new-project')}>New Project</button> <button className="suite-button" disabled title="Reminder creation arrives in the next update">New Reminder</button></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>
+      {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <><label htmlFor="search">Search reminders</label><input id="search" className="suite-input" type="search" placeholder="Project, title, or text" /><p>No saved reminders to search yet.</p></> : panel === 'Create' ? <><button className="suite-button primary" onClick={() => startCreate({ kind: 'new-project' })}>New Project</button> <button className="suite-button primary" onClick={() => startCreate({ kind: 'new-reminder', projectId: null })}>New Reminder</button><p>Choose a project inside the reminder form, or keep it as a regular reminder.</p></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>
       <label className="suite-option">Font<select aria-label="Font" value={prefs.font} onChange={e => update({...prefs,font:e.target.value as Preferences['font']})}><option value="mono">IBM Plex Mono</option><option value="system">System</option></select></label>
       <label className="suite-option">Text size<select aria-label="Text size" value={prefs.size} onChange={e => update({...prefs,size:Number(e.target.value)})}>{[14,16,18,20,24].map(n=><option key={n} value={n}>{n}px</option>)}</select></label>
       <MotionControls value={prefs.motion} onChange={motion => update({...prefs,motion})} />

@@ -8,6 +8,7 @@ pub mod error;
 pub mod migrations;
 pub mod model;
 mod projects;
+mod reminders;
 pub mod store;
 
 pub use error::{ApiError, Error, Field};

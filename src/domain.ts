@@ -5,6 +5,8 @@ export type Reminder = { id: string; projectId: string | null; title: string; te
 export type Workspace = { projects: Project[]; reminders: Reminder[] };
 
 export type ProjectInput = { name: string; description: string; deadline: string };
+/** `projectId: null` makes a regular reminder; `dueDate: null` means no due date. */
+export type ReminderInput = { projectId: string | null; title: string; text: string; dueDate: string | null };
 
 export type Field = 'id' | 'name' | 'description' | 'deadline' | 'projectId' | 'title' | 'text' | 'dueDate';
 export type StorageError = { code: 'invalid' | 'notFound' | 'schemaTooNew' | 'foreignDatabase' | 'storage' | 'unavailable'; field?: Field; message: string };
@@ -40,5 +42,12 @@ export function checkProject(input: ProjectInput): StorageError | null {
   if (input.name.trim().length > 200) return { code: 'invalid', field: 'name', message: 'Project name must be 200 characters or fewer.' };
   if (!input.deadline) return { code: 'invalid', field: 'deadline', message: 'Deadline is required.' };
   if (!isCalendarDate(input.deadline)) return { code: 'invalid', field: 'deadline', message: 'Deadline must be a real date written as YYYY-MM-DD.' };
+  return null;
+}
+
+export function checkReminder(input: ReminderInput): StorageError | null {
+  if (!input.title.trim()) return { code: 'invalid', field: 'title', message: 'Reminder header is required.' };
+  if (input.title.trim().length > 200) return { code: 'invalid', field: 'title', message: 'Reminder header must be 200 characters or fewer.' };
+  if (input.dueDate && !isCalendarDate(input.dueDate)) return { code: 'invalid', field: 'dueDate', message: 'Due date must be a real date written as YYYY-MM-DD, or left empty.' };
   return null;
 }
