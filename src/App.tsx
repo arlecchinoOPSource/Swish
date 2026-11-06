@@ -4,6 +4,8 @@ import { loadPreferences, KEY, type Preferences } from './preferences';
 import { Canvas, type Editing } from './Canvas';
 import type { ProjectInput, Reminder, ReminderInput } from './domain';
 import { createStorage } from './storage';
+import { SearchPanel } from './SearchPanel';
+import type { SearchResult } from './search';
 import { removeProject, removeReminder, upsertProject, upsertReminder, useWorkspace, type SaveState } from './useWorkspace';
 const sounds = createSoundManager();
 const storage = createStorage();
@@ -43,6 +45,21 @@ export function App() {
   function restoreReminder(reminder: Reminder) {
     return data.write(() => storage.restoreReminder(reminder), upsertReminder);
   }
+  const [query, setQuery] = useState('');
+  /** Closes Search and brings the matching item into view with keyboard focus. */
+  function openResult(result: SearchResult) {
+    setPanel(null);
+    const target = result.kind === 'project' ? `project-${result.project.id}` : `reminder-${result.reminder.id}`;
+    requestAnimationFrame(() => {
+      const element = document.getElementById(target);
+      if (!element) return;
+      element.scrollIntoView({ block: 'center', behavior: document.documentElement.dataset.motion === 'off' ? 'auto' : 'smooth' });
+      element.focus({ preventScroll: true });
+      const card = element.closest('.project, .reminder');
+      card?.setAttribute('data-search-hit', '');
+      setTimeout(() => card?.removeAttribute('data-search-hit'), 2400);
+    });
+  }
   function startCreate(next: Editing) { setPanel(null); setEditing(next); }
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
@@ -69,7 +86,7 @@ export function App() {
     <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">
-      {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <><label htmlFor="search">Search reminders</label><input id="search" className="suite-input" type="search" placeholder="Project, title, or text" /><p>No saved reminders to search yet.</p></> : panel === 'Create' ? <><button className="suite-button primary" onClick={() => startCreate({ kind: 'new-project' })}>New Project</button> <button className="suite-button primary" onClick={() => startCreate({ kind: 'new-reminder', projectId: null })}>New Reminder</button><p>Choose a project inside the reminder form, or keep it as a regular reminder.</p></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>
+      {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <SearchPanel workspace={data.state.status === 'ready' ? data.state.workspace : null} query={query} onQuery={setQuery} onOpen={openResult} /> : panel === 'Create' ? <><button className="suite-button primary" onClick={() => startCreate({ kind: 'new-project' })}>New Project</button> <button className="suite-button primary" onClick={() => startCreate({ kind: 'new-reminder', projectId: null })}>New Reminder</button><p>Choose a project inside the reminder form, or keep it as a regular reminder.</p></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>
       <label className="suite-option">Font<select aria-label="Font" value={prefs.font} onChange={e => update({...prefs,font:e.target.value as Preferences['font']})}><option value="mono">IBM Plex Mono</option><option value="system">System</option></select></label>
       <label className="suite-option">Text size<select aria-label="Text size" value={prefs.size} onChange={e => update({...prefs,size:Number(e.target.value)})}>{[14,16,18,20,24].map(n=><option key={n} value={n}>{n}px</option>)}</select></label>
       <MotionControls value={prefs.motion} onChange={motion => update({...prefs,motion})} />
