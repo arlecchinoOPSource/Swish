@@ -37,7 +37,7 @@ for (const theme of ['Blue Monitor', 'Terminal Mint', 'Ember Orange', 'Amber Dis
     await populate(page);
     if (theme !== 'Blue Monitor') {
       await page.getByRole('button', { name: 'Themes', exact: true }).click();
-      await page.getByRole('radio', { name: theme }).check();
+      await page.getByRole('option', { name: new RegExp(`^${theme}`) }).click();
       await page.keyboard.press('Escape');
     }
     await audit(page, 'populated canvas');

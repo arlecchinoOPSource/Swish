@@ -53,7 +53,9 @@ export function useWorkspace(storage: SwishStorage) {
     queue.current = task;
     return task;
   }, []);
-  return { state, save, reload, write };
+  /** Resolves once every write requested so far has finished (used before closing). */
+  const flush = useCallback(() => queue.current.then(() => undefined, () => undefined), []);
+  return { state, save, reload, write, flush };
 }
 
 /** Inserts or replaces by ID, keeping the store's project order (deadline, then creation). */

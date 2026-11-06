@@ -1,6 +1,6 @@
 {
   "identifier": "main",
-  "description": "The main window may only read and write Swish's own projects and reminders through the listed app commands.",
+  "description": "The main window may only read and write Swish's own projects and reminders through the listed app commands, and listen for the close request so the close sound can play.",
   "windows": [
     "main"
   ],
@@ -18,6 +18,9 @@
     "allow-inspect-backup",
     "allow-cancel-restore",
     "allow-restore-backup",
-    "allow-undo-restore"
+    "allow-undo-restore",
+    "allow-finish-exit",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
   ]
 }

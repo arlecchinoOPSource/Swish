@@ -48,7 +48,7 @@ test('regular and project reminders share one card and form', async ({ page }) =
 test('rail Create opens a reminder form and validation guards header and date', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Create Project / Reminder' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'New Reminder', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: /^New Reminder/ }).click();
   await expect(page.getByLabel('Reminder header')).toBeFocused();
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveText(/Reminder header is required/);

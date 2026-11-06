@@ -18,7 +18,8 @@ async function createReminder(page: Page, opener: string, title: string, text = 
 }
 
 const openSearch = (page: Page) => page.getByRole('button', { name: 'Search', exact: true }).click();
-const results = (page: Page) => page.getByRole('list', { name: 'Search results' }).getByRole('button');
+const results = (page: Page) => page.getByRole('listbox', { name: 'Search results' }).getByRole('option');
+const message = (page: Page) => page.getByRole('dialog').getByRole('status');
 
 test('normalization folds case, accents, width, and spacing', async ({ page }) => {
   await page.goto('/');
@@ -46,16 +47,17 @@ test('finds names, headers, and text with project context, completed state, and 
   await createReminder(page, 'New Reminder in Regular Reminders', 'Cafe receipts');
   await page.getByRole('checkbox', { name: 'Complete Cafe receipts' }).click();
   await openSearch(page);
-  const box = page.getByLabel('Search projects and reminders');
+  const box = page.getByRole('combobox', { name: 'Search projects and reminders' });
   await expect(box).toBeFocused();
-  await expect(page.getByRole('status').filter({ hasText: 'Type to search' })).toBeVisible();
+  await expect(message(page)).toHaveText('Type to search projects and reminders.');
 
   await box.fill('CAFE');
-  await expect(page.getByRole('status').filter({ hasText: '3 matches.' })).toBeVisible();
-  await expect(results(page).nth(0)).toContainText('Project');
+  await expect(message(page)).toHaveText('3 MATCHES · ENTER TO OPEN');
   await expect(results(page).nth(0)).toContainText('Synthetic Café Tour');
+  await expect(results(page).nth(0)).toContainText('PROJECT');
+  await expect(results(page).nth(0)).toHaveAttribute('aria-selected', 'true');
   await expect(results(page).nth(1)).toContainText('Cafe receipts');
-  await expect(results(page).nth(1)).toContainText('✓ Completed');
+  await expect(results(page).nth(1)).toContainText('✓ DONE');
   await expect(results(page).nth(1)).toContainText('In Regular Reminders');
   await expect(results(page).nth(2)).toContainText('Confirm venues');
   await expect(results(page).nth(2)).toContainText('In project Synthetic Café Tour');
@@ -72,29 +74,32 @@ test('no-match and clear states', async ({ page }) => {
   await page.goto('/');
   await createReminder(page, 'New Reminder in Regular Reminders', 'Synthetic only');
   await openSearch(page);
-  const box = page.getByLabel('Search projects and reminders');
+  const box = page.getByRole('combobox', { name: 'Search projects and reminders' });
   await box.fill('zebra');
-  await expect(page.getByRole('status').filter({ hasText: 'No matches for “zebra”.' })).toBeVisible();
-  await expect(page.getByRole('list', { name: 'Search results' })).toHaveCount(0);
-  await page.getByRole('button', { name: 'Clear' }).click();
-  await expect(box).toHaveValue('');
+  await expect(message(page)).toHaveText('No matches for “zebra”.');
+  await expect(page.getByRole('listbox', { name: 'Search results' })).toHaveCount(0);
+  await box.fill('');
   await expect(box).toBeFocused();
-  await expect(page.getByRole('status').filter({ hasText: 'Type to search' })).toBeVisible();
+  await expect(message(page)).toHaveText('Type to search projects and reminders.');
 });
 
-test('keyboard navigation opens a result and focuses it on the canvas', async ({ page }) => {
+test('keyboard moves the highlight and Enter opens the result on the canvas', async ({ page }) => {
   await page.goto('/');
   await createProject(page, 'Synthetic far away');
   for (let i = 1; i <= 5; i++) await createReminder(page, 'New Reminder in Synthetic far away', `Filler ${i}`, 'Long body '.repeat(40));
   await createReminder(page, 'New Reminder in Regular Reminders', 'Needle at the bottom');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Needle twin');
   await page.getByRole('heading', { name: 'Projects' }).scrollIntoViewIfNeeded();
   await openSearch(page);
   await page.keyboard.type('needle');
+  const box = page.getByRole('combobox', { name: 'Search projects and reminders' });
+  await expect(results(page).first()).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('ArrowDown');
-  await expect(results(page).first()).toBeFocused();
+  await expect(results(page).nth(1)).toHaveAttribute('aria-selected', 'true');
+  await expect(box).toHaveAttribute('aria-activedescendant', (await results(page).nth(1).getAttribute('id'))!);
+  await expect(box).toBeFocused();
   await page.keyboard.press('ArrowUp');
-  await expect(page.getByLabel('Search projects and reminders')).toBeFocused();
-  await page.keyboard.press('ArrowDown');
+  await expect(results(page).first()).toHaveAttribute('aria-selected', 'true');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   const target = page.getByRole('heading', { name: 'Needle at the bottom' });
@@ -103,7 +108,7 @@ test('keyboard navigation opens a result and focuses it on the canvas', async ({
   await expect(page.locator('article[data-search-hit]')).toHaveCount(1);
   // The query is kept for the next search.
   await openSearch(page);
-  await expect(page.getByLabel('Search projects and reminders')).toHaveValue('needle');
+  await expect(box).toHaveValue('needle');
 });
 
 test('long text produces a bounded excerpt and results stay inside a small window', async ({ page }) => {
@@ -111,7 +116,7 @@ test('long text produces a bounded excerpt and results stay inside a small windo
   await page.goto('/');
   await createReminder(page, 'New Reminder in Regular Reminders', 'Long body', `${'start '.repeat(60)}findme${' end'.repeat(60)}`);
   await openSearch(page);
-  await page.getByLabel('Search projects and reminders').fill('findme');
+  await page.getByRole('combobox', { name: 'Search projects and reminders' }).fill('findme');
   const snippet = results(page).first().locator('.result-snippet');
   await expect(snippet.locator('mark')).toHaveText('findme');
   expect((await snippet.textContent())!.length).toBeLessThan(120);

@@ -1,4 +1,5 @@
-import { useId, useMemo, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { SearchField } from '@arlecchino/suite-ui';
 import { formatDate, type Workspace } from './domain';
 import { excerpt, highlightRanges, search, terms, type SearchResult } from './search';
 
@@ -16,57 +17,64 @@ function Highlight({ text, queryTerms }: { text: string; queryTerms: string[] })
   return <>{parts}</>;
 }
 
+const keyOf = (r: SearchResult) => r.kind === 'project' ? `p-${r.project.id}` : `r-${r.reminder.id}`;
+
 type Props = { workspace: Workspace | null; query: string; onQuery: (query: string) => void; onOpen: (result: SearchResult) => void };
 
-/** Searches project names/descriptions and reminder headers/text in the loaded canvas. */
+/**
+ * Terminal-style search over project names and descriptions and reminder headers and
+ * text: typing filters, Arrow/Home/End move the highlight, Enter or click opens.
+ */
 export function SearchPanel({ workspace, query, onQuery, onOpen }: Props) {
   const id = useId();
-  const input = useRef<HTMLInputElement>(null);
-  const list = useRef<HTMLUListElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [highlight, setHighlight] = useState(0);
   const queryTerms = useMemo(() => terms(query), [query]);
   const results = useMemo(() => workspace ? search(workspace, query) : [], [workspace, query]);
   const shown = results.slice(0, RESULT_LIMIT);
+  const current = shown[Math.min(highlight, shown.length - 1)];
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  useEffect(() => { if (current) document.getElementById(`${id}-${keyOf(current)}`)?.scrollIntoView({ block: 'nearest' }); }, [id, current]);
 
-  function move(event: KeyboardEvent, from: number) {
-    const buttons = [...(list.current?.querySelectorAll('button') ?? [])];
-    const next = event.key === 'ArrowDown' ? from + 1 : event.key === 'ArrowUp' ? from - 1 : null;
-    if (next === null) return;
+  function keys(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Enter') { event.preventDefault(); if (current) onOpen(current); return; }
+    const index = current ? shown.indexOf(current) : 0;
+    const next = ({ ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: shown.length - 1 } as Record<string, number>)[event.key];
+    if (next === undefined || !shown.length) return;
     event.preventDefault();
-    if (next < 0) input.current?.focus();
-    else buttons[Math.min(next, buttons.length - 1)]?.focus();
+    setHighlight(Math.max(0, Math.min(shown.length - 1, next)));
   }
 
-  const summary = !workspace ? 'Search is available once local data has opened.'
-    : queryTerms.length === 0 ? 'Type to search project names and descriptions, and reminder headers and text.'
-    : results.length === 0 ? `No matches for “${query.trim()}”.`
-    : results.length > RESULT_LIMIT ? `Showing the first ${RESULT_LIMIT} of ${results.length} matches. Add a word to narrow it down.`
-    : `${results.length} match${results.length === 1 ? '' : 'es'}.`;
+  const trimmed = query.trim();
+  const message = !workspace ? 'SEARCH OPENS ONCE LOCAL DATA IS READY.'
+    : queryTerms.length === 0 ? 'Type to search projects and reminders.'
+    : results.length === 0 ? `No matches for “${trimmed}”.`
+    : results.length > RESULT_LIMIT ? `FIRST ${RESULT_LIMIT} OF ${results.length} MATCHES · ADD A WORD TO NARROW`
+    : `${results.length} ${results.length === 1 ? 'MATCH' : 'MATCHES'} · ENTER TO OPEN`;
 
-  return <div className="search-panel">
-    <label htmlFor={`${id}-q`}>Search projects and reminders</label>
-    <div className="date-row">
-      <input id={`${id}-q`} ref={input} className="suite-input" type="search" autoFocus value={query} placeholder="Project, header, or text"
-        aria-describedby={`${id}-summary`} aria-controls={`${id}-results`} disabled={!workspace}
-        onChange={e => onQuery(e.target.value)} onKeyDown={e => move(e, -1)} />
-      {query && <button type="button" className="suite-button" onClick={() => { onQuery(''); input.current?.focus(); }}>Clear</button>}
-    </div>
-    <p id={`${id}-summary`} className="search-summary" role="status">{summary}</p>
-    {shown.length > 0 && <ul id={`${id}-results`} ref={list} className="search-results" aria-label="Search results">
-      {shown.map((result, index) => <li key={result.kind === 'project' ? `p-${result.project.id}` : `r-${result.reminder.id}`}>
-        <button type="button" className="search-result" onKeyDown={e => move(e, index)} onClick={() => onOpen(result)}>
-          {result.kind === 'project' ? <>
-            <span className="result-kind">Project</span>
-            <span className="result-title"><Highlight text={result.project.name} queryTerms={queryTerms} /></span>
-            <span className="result-context">Deadline {formatDate(result.project.deadline)}</span>
-            {result.field === 'description' && <span className="result-snippet"><Highlight text={excerpt(result.project.description, queryTerms).text} queryTerms={queryTerms} /></span>}
-          </> : <>
-            <span className="result-kind">Reminder{result.reminder.completedAt ? ' · ✓ Completed' : ''}</span>
-            <span className="result-title"><Highlight text={result.reminder.title} queryTerms={queryTerms} /></span>
-            <span className="result-context">{result.project ? `In project ${result.project.name}` : 'In Regular Reminders'}</span>
-            {result.field === 'text' && <span className="result-snippet"><Highlight text={excerpt(result.reminder.text, queryTerms).text} queryTerms={queryTerms} /></span>}
-          </>}
-        </button>
+  return <>
+    <SearchField ref={inputRef} label="Search projects and reminders" placeholder="Search projects and reminders" disabled={!workspace}
+      role="combobox" aria-expanded={shown.length > 0} aria-controls={`${id}-results`} aria-autocomplete="list"
+      aria-activedescendant={current ? `${id}-${keyOf(current)}` : undefined} aria-describedby={`${id}-message`}
+      value={query} onChange={e => { onQuery(e.target.value); setHighlight(0); }} onKeyDown={keys} />
+    <p id={`${id}-message`} className="search-message" role="status">{message}</p>
+    {shown.length > 0 && <ul id={`${id}-results`} className="archive-list search-results swish-results" role="listbox" aria-label="Search results">
+      {shown.map(result => <li key={keyOf(result)} id={`${id}-${keyOf(result)}`} role="option" aria-selected={result === current}
+        className="archive-row" onPointerDown={e => e.preventDefault()} onClick={() => onOpen(result)}>
+        <span className="archive-marker" aria-hidden="true">{result === current ? '▶' : ''}</span>
+        {result.kind === 'project'
+          ? <span className="result-body">
+              <span className="archive-title"><Highlight text={result.project.name} queryTerms={queryTerms} /></span>
+              {result.field === 'description' && <span className="result-snippet"><Highlight text={excerpt(result.project.description, queryTerms).text} queryTerms={queryTerms} /></span>}
+              <span className="archive-meta">Deadline {formatDate(result.project.deadline)}</span>
+            </span>
+          : <span className="result-body">
+              <span className="archive-title"><Highlight text={result.reminder.title} queryTerms={queryTerms} /></span>
+              {result.field === 'text' && <span className="result-snippet"><Highlight text={excerpt(result.reminder.text, queryTerms).text} queryTerms={queryTerms} /></span>}
+              <span className="archive-meta">{result.project ? `In project ${result.project.name}` : 'In Regular Reminders'}</span>
+            </span>}
+        <span className="archive-meta result-kind">{result.kind === 'project' ? 'PROJECT' : result.reminder.completedAt ? '✓ DONE' : 'REMINDER'}</span>
       </li>)}
     </ul>}
-  </div>;
+  </>;
 }

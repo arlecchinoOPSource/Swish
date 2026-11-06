@@ -110,12 +110,13 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
 <ReminderCard key={reminder.id} reminder={reminder} today={today} onEdit={() => onEdit({ kind: 'reminder', id: reminder.id })} onToggle={completed => setCompleted(reminder.id, completed)}
         onDelete={async () => { const r = await deleteReminder(reminder.id); if (r.removed) setUndo(r.removed); return r.error; }} />;
 
-  /** Reminders for one context plus its create form when open. */
-  const collection = (projectId: string | null, label: string, empty: string): ReactNode => {
+  /** Reminders for one context plus its create form when open, and its New Reminder button. */
+  const collection = (projectId: string | null, label: string, empty: string): [ReactNode, ReactNode] => {
     const items = reminders.filter(r => r.projectId === projectId);
     const creating = editing?.kind === 'new-reminder' && editing.projectId === projectId;
     const opener = projectId ? `new-reminder-${projectId}` : 'new-regular-reminder';
-    return <>
+    const button = <button id={opener} type="button" className="suite-button" disabled={creating} onClick={() => onEdit({ kind: 'new-reminder', projectId })} aria-label={projectId ? `New Reminder in ${label}` : 'New Reminder in Regular Reminders'}>New Reminder</button>;
+    return [<>
       {items.length === 0 && !creating && <p className="empty-state">{empty}</p>}
       {items.length > 0 && <div className="project-reminders" tabIndex={projectId ? 0 : undefined} role={projectId ? 'region' : undefined} aria-label={projectId ? `Reminders in ${label}` : undefined}>{items.map(cardOrForm)}</div>}
       {creating && (() => {
@@ -124,10 +125,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
           onCancel={() => { d.forget(); closeEditor(opener); }}
           onSubmit={async input => { const r = await saveReminder(null, input); if (!r.error) { d.forget(); closeEditor(`reminder-${r.id}`); } return r.error; }} />;
       })()}
-      <div className="entity-actions">
-        <button id={opener} type="button" className="suite-button" disabled={creating} onClick={() => onEdit({ kind: 'new-reminder', projectId })} aria-label={projectId ? `New Reminder in ${label}` : 'New Reminder in Regular Reminders'}>New Reminder</button>
-      </div>
-    </>;
+    </>, button];
   };
 
   return <main className="swish-canvas">
@@ -164,10 +162,11 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
           }} />;
         })()
       : <ProjectPanel key={project.id} project={project} today={today} reminders={reminders.filter(r => r.projectId === project.id)} onEdit={() => onEdit({ kind: 'project', id: project.id })}
-          onDelete={count => setConfirming({ project, count })}>
-          {collection(project.id, project.name, 'No reminders in this project yet.')}
-        </ProjectPanel>)}
-    <section className="project" aria-labelledby="regular-reminders"><h2 id="regular-reminders">Regular Reminders</h2>{collection(null, 'Regular Reminders', 'No reminders yet.')}</section>
+          onDelete={count => setConfirming({ project, count })} collection={collection(project.id, project.name, 'No reminders in this project yet.')} />)}
+    {(() => {
+      const [body, button] = collection(null, 'Regular Reminders', 'No reminders yet.');
+      return <section className="project" aria-labelledby="regular-reminders"><h2 id="regular-reminders">Regular Reminders</h2>{body}<div className="entity-actions">{button}</div></section>;
+    })()}
     {undo && <UndoBar key={undo.id} reminder={undo} onExpire={expireUndo} onUndo={async () => {
       const error = await restoreReminder(undo);
       if (!error) { setUndo(null); setFocusTarget(`reminder-${undo.id}`); }
@@ -186,7 +185,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
   </main>;
 }
 
-function ProjectPanel({ project, today, reminders, onEdit, onDelete, children }: { project: Project; today: string; reminders: Reminder[]; onEdit: () => void; onDelete: (count: number) => void; children: ReactNode }) {
+function ProjectPanel({ project, today, reminders, onEdit, onDelete, collection: [body, newReminder] }: { project: Project; today: string; reminders: Reminder[]; onEdit: () => void; onDelete: (count: number) => void; collection: [ReactNode, ReactNode] }) {
   const { done, total } = progressOf(reminders);
   return <section className="project" aria-labelledby={`project-${project.id}`}>
     <header className="project-heading">
@@ -194,15 +193,17 @@ function ProjectPanel({ project, today, reminders, onEdit, onDelete, children }:
       <DateLine kind="deadline" date={project.deadline} today={today} settled={total > 0 && done === total} />
     </header>
     {project.description && <p className="project-description">{project.description}</p>}
-    <div className="project-progress" data-complete={total > 0 && done === total}>
-      <span className="progress-text">{total === 0 ? 'No reminders to complete yet' : `${done} of ${total} completed${done === total ? ' — all done' : ''}`}</span>
-      <span className="progress-track" aria-hidden="true"><span style={{ width: total ? `${(done / total) * 100}%` : '0%' }} /></span>
-    </div>
-    {children}
+    {/* An empty project says so once, in the list below; progress appears with the first reminder. */}
+    {total > 0 && <div className="project-progress" data-complete={done === total}>
+      <span className="progress-text">{`${done} of ${total} completed${done === total ? ' — all done' : ''}`}</span>
+      <span className="progress-track" aria-hidden="true"><span style={{ width: `${(done / total) * 100}%` }} /></span>
+    </div>}
+    {body}
     <div className="entity-actions">
+      {newReminder}
       <button id={`edit-${project.id}`} type="button" className="suite-button" onClick={onEdit} aria-label={`Edit project ${project.name}`}>Edit Project</button>
+      <button id={`delete-${project.id}`} type="button" className="suite-button destructive entity-delete" onClick={() => onDelete(total)} aria-label={`Delete project ${project.name} and its ${total} reminder${total === 1 ? '' : 's'}`}>Delete Project</button>
     </div>
-    <button id={`delete-${project.id}`} type="button" className="suite-button destructive" onClick={() => onDelete(total)} aria-label={`Delete project ${project.name} and its ${total} reminder${total === 1 ? '' : 's'}`}>Delete Project</button>
   </section>;
 }
 
@@ -243,11 +244,11 @@ function ReminderCard({ reminder, today, onEdit, onToggle, onDelete }: { reminde
       {failed.wanted ? 'Not marked complete' : 'Not reopened'}: {failed.error.message}
       <button type="button" className="suite-button" onClick={() => toggle(failed.wanted)}>Retry</button>
     </div>}
+    {deleteError && <p className="form-error" role="alert">Not deleted: {deleteError.message}</p>}
     <div className="entity-actions">
       <button id={`edit-${reminder.id}`} type="button" className="suite-button" onClick={onEdit} aria-label={`Edit reminder ${reminder.title}`}>Edit Reminder</button>
+      <button type="button" className="suite-button destructive entity-delete" disabled={deleting} onClick={remove} aria-label={`Delete reminder ${reminder.title}`}>{deleting ? 'Deleting…' : deleteError ? 'Retry delete' : 'Delete Reminder'}</button>
     </div>
-    {deleteError && <p className="form-error" role="alert">Not deleted: {deleteError.message}</p>}
-    <button type="button" className="suite-button destructive" disabled={deleting} onClick={remove} aria-label={`Delete reminder ${reminder.title}`}>{deleting ? 'Deleting…' : deleteError ? 'Retry delete' : 'Delete Reminder'}</button>
   </article>;
 }
 

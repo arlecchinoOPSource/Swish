@@ -1,8 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod backup_commands;
+mod closing;
 
 use std::sync::Mutex;
+use std::sync::atomic::Ordering;
 
 use swish_data::{
     ApiError, DATABASE_FILE, DeletedProject, Error, Project, ProjectInput, Reminder, ReminderInput,
@@ -152,8 +154,21 @@ fn webdriver_overrides<'a>(
 }
 
 fn main() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .manage(closing::ExitAllowed::default())
+        .on_window_event(|window, event| {
+            // Hold the close so the page can finish saving and play the close sound.
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && !window
+                    .state::<closing::ExitAllowed>()
+                    .0
+                    .load(Ordering::SeqCst)
+            {
+                api.prevent_close();
+                closing::request_close(window.app_handle());
+            }
+        })
         .manage(backup_commands::PendingRestore::default())
         .manage(backup_commands::LastSafetyCopy::default())
         .setup(|app| {
@@ -176,8 +191,18 @@ fn main() {
             backup_commands::inspect_backup,
             backup_commands::cancel_restore,
             backup_commands::restore_backup,
-            backup_commands::undo_restore
+            backup_commands::undo_restore,
+            closing::finish_exit
         ])
-        .run(tauri::generate_context!())
+        .build(tauri::generate_context!())
         .expect("Swish could not start");
+    app.run(|app, event| {
+        // Quit from the menu or keyboard (e.g. Cmd+Q) takes the same path as closing the window.
+        if let tauri::RunEvent::ExitRequested { api, .. } = event
+            && !app.state::<closing::ExitAllowed>().0.load(Ordering::SeqCst)
+        {
+            api.prevent_exit();
+            closing::request_close(app);
+        }
+    });
 }
