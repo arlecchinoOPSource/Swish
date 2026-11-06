@@ -1,0 +1,8 @@
+{
+  "identifier": "main",
+  "description": "Swish foundation needs no privileged frontend commands.",
+  "windows": [
+    "main"
+  ],
+  "permissions": []
+}
