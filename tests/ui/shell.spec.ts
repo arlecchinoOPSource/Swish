@@ -69,3 +69,14 @@ test('playback rejection does not block navigation or completion', async ({ page
  await page.getByRole('button',{name:'Settings',exact:true}).click();
  await expect(page.getByRole('combobox',{name:'Text size'})).toBeVisible();
 });
+
+test('failed data load is explained and retried without inventing empty data', async ({ page }) => {
+ await page.addInitScript(() => { window.__swishPreviewFault = 'load'; });
+ await page.goto('/');
+ await expect(page.getByRole('alert')).toContainText('Local data unavailable');
+ await expect(page.locator('.save-status')).toContainText('LOCAL DATA UNAVAILABLE');
+ await expect(page.getByText('No projects yet.')).toHaveCount(0);
+ await page.getByRole('button',{name:'Try again'}).click();
+ await expect(page.getByText('No projects yet.')).toBeVisible();
+ await expect(page.locator('.save-status')).toContainText('NOT SAVING TO DISK');
+});

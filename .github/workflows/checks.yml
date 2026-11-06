@@ -30,7 +30,8 @@ jobs:
       - run: npm run check
       - run: npm test --prefix vendor/arlecchino-core
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --all --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml -p swish-data --locked
       - run: npm run build:native -- -- --locked
       - run: npx playwright install chromium webkit
       - run: npm run test:ui

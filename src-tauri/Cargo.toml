@@ -3,10 +3,14 @@ name = "swish"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.90"
-description = "Swish desktop foundation"
+description = "Swish desktop host"
+
+[workspace]
+members = ["data"]
 
 [build-dependencies]
 tauri-build = { version = "2.7.4", features = [] }
 
 [dependencies]
 tauri = { version = "2.12.5", features = [] }
+swish-data = { path = "data" }

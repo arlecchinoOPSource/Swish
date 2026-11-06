@@ -1,8 +1,10 @@
 {
   "identifier": "main",
-  "description": "Swish foundation needs no privileged frontend commands.",
+  "description": "The main window may only read and write Swish's own projects and reminders through the listed app commands.",
   "windows": [
     "main"
   ],
-  "permissions": []
+  "permissions": [
+    "allow-load-workspace"
+  ]
 }
