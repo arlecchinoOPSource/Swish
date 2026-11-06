@@ -183,9 +183,12 @@ export class PreviewStorage implements SwishStorage {
   async inspectBackup(): Promise<InspectResult> {
     this.pending = null;
     const file = await new Promise<File | null>(resolve => {
-      const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json' });
-      input.addEventListener('change', () => resolve(input.files?.[0] ?? null));
-      input.addEventListener('cancel', () => resolve(null));
+      // Attached (but hidden): WebKit does not reliably fire events on detached file inputs.
+      const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json', hidden: true });
+      const done = (file: File | null) => { input.remove(); resolve(file); };
+      input.addEventListener('change', () => done(input.files?.[0] ?? null));
+      input.addEventListener('cancel', () => done(null));
+      document.body.append(input);
       input.click();
     });
     if (!file) return { status: 'cancelled' };
