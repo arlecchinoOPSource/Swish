@@ -87,6 +87,9 @@ jobs:
           msedgedriver --version
           $env:SWISH_EDGEDRIVER = (Get-Command msedgedriver).Source
           npm run test:native
+          $code = $LASTEXITCODE
+          if (Test-Path msedgedriver.log) { Get-Content msedgedriver.log -Tail 120 }
+          exit $code
       - uses: actions/upload-artifact@v4
         if: always()
         with:

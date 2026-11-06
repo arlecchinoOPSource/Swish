@@ -32,6 +32,8 @@ async function audit(page: Page, label: string) {
 
 for (const theme of ['Blue Monitor', 'Terminal Mint', 'Ember Orange', 'Amber Display']) {
   test(`no WCAG A/AA violations across states — ${theme}`, async ({ page }) => {
+    // About ten full audits, each after animations settle: give slower CI runners room.
+    test.setTimeout(120_000);
     await populate(page);
     if (theme !== 'Blue Monitor') {
       await page.getByRole('button', { name: 'Themes', exact: true }).click();

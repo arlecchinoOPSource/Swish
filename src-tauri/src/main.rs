@@ -112,6 +112,45 @@ fn restore_reminder(storage: State<'_, Storage>, reminder: Reminder) -> Result<R
     storage.with(|store| store.restore_reminder(&reminder))
 }
 
+/// Builds the main window from tauri.conf.json (where it is `create: false`).
+fn create_main_window(app: &tauri::App) -> tauri::Result<()> {
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|w| w.label == "main")
+        .cloned()
+        .expect("tauri.conf.json defines the main window");
+    #[allow(unused_mut)]
+    let mut builder = tauri::WebviewWindowBuilder::from_config(app, &config)?;
+    #[cfg(debug_assertions)]
+    {
+        builder = webdriver_overrides(builder);
+    }
+    builder.build()?;
+    Ok(())
+}
+
+/// Debug builds only: when Microsoft Edge WebDriver launches the app, it passes its
+/// debugging port and data folder through WebView2 environment variables. Tauri always
+/// sets WebView2's browser arguments (and its own data folder) explicitly, so apply the
+/// driver's values on top of Tauri's defaults. Normal launches set neither variable.
+#[cfg(debug_assertions)]
+fn webdriver_overrides<'a>(
+    mut builder: tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::App>,
+) -> tauri::WebviewWindowBuilder<'a, tauri::Wry, tauri::App> {
+    if let Ok(extra) = std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS") {
+        // Tauri's (wry's) defaults, kept so the app behaves as in a normal launch.
+        let defaults = "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection";
+        builder = builder.additional_browser_args(&format!("{defaults} {extra}"));
+    }
+    if let Some(folder) = std::env::var_os("WEBVIEW2_USER_DATA_FOLDER") {
+        builder = builder.data_directory(std::path::PathBuf::from(folder));
+    }
+    builder
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -120,6 +159,7 @@ fn main() {
         .setup(|app| {
             let store = open_store(app);
             app.manage(Storage(Mutex::new(store)));
+            create_main_window(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

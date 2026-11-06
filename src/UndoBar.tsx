@@ -24,7 +24,16 @@ export function UndoBar({ reminder, onUndo, onExpire }: Props) {
     if (!element || !canvas) return;
     const observer = new ResizeObserver(() => canvas.style.setProperty('--undo-bar-height', `${element.offsetHeight}px`));
     observer.observe(element);
-    return () => { observer.disconnect(); canvas.style.removeProperty('--undo-bar-height'); };
+    // Not every engine applies scroll-padding when focus moves (WebKit does not), so a
+    // focused control that lands under the bar is scrolled clear explicitly.
+    function keepClear(event: FocusEvent) {
+      const target = event.target;
+      if (!(target instanceof HTMLElement) || element!.contains(target)) return;
+      const covered = target.getBoundingClientRect().bottom - element!.getBoundingClientRect().top;
+      if (covered > 0) canvas!.scrollBy({ top: covered + 16 });
+    }
+    canvas.addEventListener('focusin', keepClear);
+    return () => { observer.disconnect(); canvas.removeEventListener('focusin', keepClear); canvas.style.removeProperty('--undo-bar-height'); };
   }, []);
   // Count down against a wall-clock deadline that restarts from what was left after a pause.
   const left = useRef(UNDO_SECONDS * 1000);
