@@ -44,6 +44,32 @@ fn days_in_month(year: u32, month: u32) -> u32 {
     }
 }
 
+/// Returns true for a timestamp in exactly the form this crate writes:
+/// `YYYY-MM-DDTHH:MM:SS.mmmZ` with a real date and in-range time.
+pub fn is_timestamp(value: &str) -> bool {
+    let b = value.as_bytes();
+    if b.len() != 24
+        || b[10] != b'T'
+        || b[13] != b':'
+        || b[16] != b':'
+        || b[19] != b'.'
+        || b[23] != b'Z'
+    {
+        return false;
+    }
+    let number = |range: std::ops::Range<usize>| -> Option<u32> {
+        let part = &value[range];
+        part.bytes()
+            .all(|c| c.is_ascii_digit())
+            .then(|| part.parse().ok())
+            .flatten()
+    };
+    matches!(
+        (number(11..13), number(14..16), number(17..19), number(20..23)),
+        (Some(h), Some(m), Some(s), Some(_)) if h < 24 && m < 60 && s < 60
+    ) && is_calendar_date(&value[..10])
+}
+
 /// Current time as `YYYY-MM-DDTHH:MM:SS.mmmZ`.
 pub fn now_timestamp() -> String {
     let since = SystemTime::now()
@@ -128,5 +154,16 @@ mod tests {
         );
         assert_eq!(format_timestamp(-1), "1969-12-31T23:59:59.999Z");
         assert_eq!(now_timestamp().len(), 24);
+        assert!(is_timestamp(&now_timestamp()));
+        assert!(is_timestamp("2028-02-29T23:59:59.999Z"));
+        for bad in [
+            "2026-02-29T00:00:00.000Z",
+            "2026-11-06T24:00:00.000Z",
+            "2026-11-06T10:14:56Z",
+            "2026-11-06 10:14:56.789Z",
+            "2026-11-06T10:60:00.000+00:00",
+        ] {
+            assert!(!is_timestamp(bad), "{bad}");
+        }
     }
 }

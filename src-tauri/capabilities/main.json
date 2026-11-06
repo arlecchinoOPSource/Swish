@@ -10,6 +10,9 @@
     "allow-update-project",
     "allow-create-reminder",
     "allow-update-reminder",
-    "allow-set-reminder-completed"
+    "allow-set-reminder-completed",
+    "allow-delete-project",
+    "allow-delete-reminder",
+    "allow-restore-reminder"
   ]
 }

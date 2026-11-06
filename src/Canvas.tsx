@@ -1,7 +1,9 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { CompletionControl } from '@arlecchino/suite-ui';
 import { formatDate, progressOf, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError } from './domain';
+import { ConfirmDialog } from './ConfirmDialog';
 import { ProjectForm } from './ProjectForm';
+import { UndoBar } from './UndoBar';
 import { ReminderForm } from './ReminderForm';
 import type { WorkspaceState } from './useWorkspace';
 
@@ -21,12 +23,22 @@ type Props = {
   saveProject: (id: string | null, input: ProjectInput) => SaveResult;
   saveReminder: (id: string | null, input: ReminderInput) => SaveResult;
   setCompleted: (id: string, completed: boolean) => Promise<StorageError | null>;
+  deleteProject: (id: string, expectedReminders: number) => Promise<StorageError | null>;
+  deleteReminder: (id: string) => Promise<{ error: StorageError | null; removed?: Reminder }>;
+  restoreReminder: (reminder: Reminder) => Promise<StorageError | null>;
 };
 
 const emptyProject: ProjectInput = { name: '', description: '', deadline: '' };
 
-export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveReminder, setCompleted }: Props) {
+export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveReminder, setCompleted, deleteProject, deleteReminder, restoreReminder }: Props) {
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<{ project: Project; count: number } | null>(null);
+  const [undo, setUndo] = useState<Reminder | null>(null);
+  const expireUndo = useCallback((hadFocus: boolean) => {
+    // Deletion is now final. Keep keyboard users in the same section.
+    if (undo && hadFocus) setFocusTarget(undo.projectId ? `new-reminder-${undo.projectId}` : 'new-regular-reminder');
+    setUndo(null);
+  }, [undo]);
   useEffect(() => {
     if (!focusTarget) return;
     document.getElementById(focusTarget)?.focus();
@@ -46,7 +58,8 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
         initial={{ projectId: reminder.projectId, title: reminder.title, text: reminder.text, dueDate: reminder.dueDate }}
         onCancel={() => closeEditor(`edit-${reminder.id}`)}
         onSubmit={async input => { const r = await saveReminder(reminder.id, input); if (!r.error) closeEditor(`edit-${reminder.id}`); return r.error; }} />
-    : <ReminderCard key={reminder.id} reminder={reminder} onEdit={() => onEdit({ kind: 'reminder', id: reminder.id })} onToggle={completed => setCompleted(reminder.id, completed)} />;
+    : <ReminderCard key={reminder.id} reminder={reminder} onEdit={() => onEdit({ kind: 'reminder', id: reminder.id })} onToggle={completed => setCompleted(reminder.id, completed)}
+        onDelete={async () => { const r = await deleteReminder(reminder.id); if (r.removed) setUndo(r.removed); return r.error; }} />;
 
   /** Reminders for one context plus its create form when open. */
   const collection = (projectId: string | null, label: string, empty: string): ReactNode => {
@@ -80,14 +93,30 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
           if (!result.error) closeEditor(`edit-${project.id}`);
           return result.error;
         }} />
-      : <ProjectPanel key={project.id} project={project} reminders={reminders.filter(r => r.projectId === project.id)} onEdit={() => onEdit({ kind: 'project', id: project.id })}>
+      : <ProjectPanel key={project.id} project={project} reminders={reminders.filter(r => r.projectId === project.id)} onEdit={() => onEdit({ kind: 'project', id: project.id })}
+          onDelete={count => setConfirming({ project, count })}>
           {collection(project.id, project.name, 'No reminders in this project yet.')}
         </ProjectPanel>)}
     <section className="project" aria-labelledby="regular-reminders"><h2 id="regular-reminders">Regular Reminders</h2>{collection(null, 'Regular Reminders', 'No reminders yet.')}</section>
+    {undo && <UndoBar key={undo.id} reminder={undo} onExpire={expireUndo} onUndo={async () => {
+      const error = await restoreReminder(undo);
+      if (!error) { setUndo(null); setFocusTarget(`reminder-${undo.id}`); }
+      return error;
+    }} />}
+    {confirming && <ConfirmDialog title={`Delete project “${confirming.project.name}”?`} confirmLabel="Delete project"
+      onCancel={() => { const id = confirming.project.id; setConfirming(null); setFocusTarget(`delete-${id}`); }}
+      onConfirm={async () => {
+        const error = await deleteProject(confirming.project.id, confirming.count);
+        if (!error) { setConfirming(null); setFocusTarget('new-project'); }
+        return error;
+      }}>
+      <p>{confirming.count === 0 ? 'This project has no reminders.' : `This also deletes its ${confirming.count} reminder${confirming.count === 1 ? '' : 's'}, completed or not.`}</p>
+      <p><strong>This cannot be undone.</strong> Regular reminders and other projects are not affected.</p>
+    </ConfirmDialog>}
   </main>;
 }
 
-function ProjectPanel({ project, reminders, onEdit, children }: { project: Project; reminders: Reminder[]; onEdit: () => void; children: ReactNode }) {
+function ProjectPanel({ project, reminders, onEdit, onDelete, children }: { project: Project; reminders: Reminder[]; onEdit: () => void; onDelete: (count: number) => void; children: ReactNode }) {
   const { done, total } = progressOf(reminders);
   return <section className="project" aria-labelledby={`project-${project.id}`}>
     <header className="project-heading">
@@ -103,11 +132,20 @@ function ProjectPanel({ project, reminders, onEdit, children }: { project: Proje
     <div className="entity-actions">
       <button id={`edit-${project.id}`} type="button" className="suite-button" onClick={onEdit} aria-label={`Edit project ${project.name}`}>Edit Project</button>
     </div>
-    <button type="button" className="suite-button destructive" disabled title="Safe deletion arrives in a later update" aria-label={`Delete project ${project.name} (not yet available)`}>Delete Project</button>
+    <button id={`delete-${project.id}`} type="button" className="suite-button destructive" onClick={() => onDelete(total)} aria-label={`Delete project ${project.name} and its ${total} reminder${total === 1 ? '' : 's'}`}>Delete Project</button>
   </section>;
 }
 
-function ReminderCard({ reminder, onEdit, onToggle }: { reminder: Reminder; onEdit: () => void; onToggle: (completed: boolean) => Promise<StorageError | null> }) {
+function ReminderCard({ reminder, onEdit, onToggle, onDelete }: { reminder: Reminder; onEdit: () => void; onToggle: (completed: boolean) => Promise<StorageError | null>; onDelete: () => Promise<StorageError | null> }) {
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<StorageError | null>(null);
+  async function remove() {
+    setDeleting(true);
+    setDeleteError(null);
+    const error = await onDelete();
+    // On success this card unmounts; on failure it stays with the reason.
+    if (error) { setDeleting(false); setDeleteError(error); }
+  }
   const done = reminder.completedAt !== null;
   const [pending, setPending] = useState<boolean | null>(null);
   const [failed, setFailed] = useState<{ wanted: boolean; error: StorageError } | null>(null);
@@ -138,6 +176,7 @@ function ReminderCard({ reminder, onEdit, onToggle }: { reminder: Reminder; onEd
     <div className="entity-actions">
       <button id={`edit-${reminder.id}`} type="button" className="suite-button" onClick={onEdit} aria-label={`Edit reminder ${reminder.title}`}>Edit Reminder</button>
     </div>
-    <button type="button" className="suite-button destructive" disabled title="Safe deletion arrives in a later update" aria-label={`Delete reminder ${reminder.title} (not yet available)`}>Delete Reminder</button>
+    {deleteError && <p className="form-error" role="alert">Not deleted: {deleteError.message}</p>}
+    <button type="button" className="suite-button destructive" disabled={deleting} onClick={remove} aria-label={`Delete reminder ${reminder.title}`}>{deleting ? 'Deleting…' : deleteError ? 'Retry delete' : 'Delete Reminder'}</button>
   </article>;
 }

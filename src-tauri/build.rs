@@ -9,6 +9,9 @@ fn main() {
             "create_reminder",
             "update_reminder",
             "set_reminder_completed",
+            "delete_project",
+            "delete_reminder",
+            "restore_reminder",
         ]),
     ))
     .expect("failed to run tauri-build");
