@@ -5,6 +5,8 @@
     "main"
   ],
   "permissions": [
-    "allow-load-workspace"
+    "allow-load-workspace",
+    "allow-create-project",
+    "allow-update-project"
   ]
 }

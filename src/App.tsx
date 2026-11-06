@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppShell, Rail, BrandMark, IdentityStrip, StatusBar, IconButton, SvgIcon, Popover, applyTheme, applyMotion, effectiveMotion, createSoundManager, bindSoundLifecycle, ThemeControls, SoundControls, MotionControls, StartupScreen } from '@arlecchino/suite-ui';
+import { AppShell, Rail, BrandMark, IdentityStrip, StatusBar, IconButton, SvgIcon, Popover, type StatusTone, applyTheme, applyMotion, effectiveMotion, createSoundManager, bindSoundLifecycle, ThemeControls, SoundControls, MotionControls, StartupScreen } from '@arlecchino/suite-ui';
 import { loadPreferences, KEY, type Preferences } from './preferences';
-import { Canvas } from './Canvas';
+import { Canvas, type Editing } from './Canvas';
+import type { ProjectInput } from './domain';
 import { createStorage } from './storage';
-import { useWorkspace } from './useWorkspace';
+import { upsertProject, useWorkspace, type SaveState } from './useWorkspace';
 const sounds = createSoundManager();
 const storage = createStorage();
 type Panel = 'Search' | 'Create' | 'Themes' | 'Sounds' | 'Settings';
@@ -14,6 +15,13 @@ export function App() {
   const [starting, setStarting] = useState(prefs.startup);
   const done = useCallback(() => setStarting(false), []);
   const data = useWorkspace(storage);
+  const [editing, setEditing] = useState<Editing>(null);
+  async function saveProject(id: string | null, input: ProjectInput) {
+    let savedId: string | undefined;
+    const error = await data.write(() => id ? storage.updateProject(id, input) : storage.createProject(input), (workspace, project) => { savedId = project.id; return upsertProject(workspace, project); });
+    return { error, id: savedId };
+  }
+  function startCreate(kind: 'new-project') { setPanel(null); setEditing({ kind }); }
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
     try { localStorage.setItem(KEY, JSON.stringify(next)); setPreferenceError(false); } catch { setPreferenceError(true); }
@@ -35,11 +43,11 @@ export function App() {
     {action('Themes', 'themes')}{action('Sounds', 'sounds')}
   </Rail>}>
     <IdentityStrip wordmark="Swish" />
-    <Canvas data={data.state} onRetry={data.reload} onComplete={() => sounds.play('completion')} />
-    <StatusBar tone={preferenceError || data.state.status === 'error' ? 'error' : data.state.status === 'loading' ? 'busy' : 'idle'} status={preferenceError ? 'PREFERENCES NOT SAVED — TRY AGAIN IN SETTINGS' : data.state.status === 'error' ? 'LOCAL DATA UNAVAILABLE' : storage.kind === 'preview' ? 'BROWSER PREVIEW · NOT SAVING TO DISK' : data.state.status === 'loading' ? 'OPENING LOCAL DATA' : 'LOCAL DATA READY'} />
+    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} />
+    <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">
-      {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <><label htmlFor="search">Search reminders</label><input id="search" className="suite-input" type="search" placeholder="Project, title, or text" /><p>No saved reminders to search yet.</p></> : panel === 'Create' ? <><p>Project and reminder creation arrives with local storage.</p><button className="suite-button" disabled>New Project</button> <button className="suite-button" disabled>New Reminder</button></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>
+      {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <><label htmlFor="search">Search reminders</label><input id="search" className="suite-input" type="search" placeholder="Project, title, or text" /><p>No saved reminders to search yet.</p></> : panel === 'Create' ? <><button className="suite-button primary" onClick={() => startCreate('new-project')}>New Project</button> <button className="suite-button" disabled title="Reminder creation arrives in the next update">New Reminder</button></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>
       <label className="suite-option">Font<select aria-label="Font" value={prefs.font} onChange={e => update({...prefs,font:e.target.value as Preferences['font']})}><option value="mono">IBM Plex Mono</option><option value="system">System</option></select></label>
       <label className="suite-option">Text size<select aria-label="Text size" value={prefs.size} onChange={e => update({...prefs,size:Number(e.target.value)})}>{[14,16,18,20,24].map(n=><option key={n} value={n}>{n}px</option>)}</select></label>
       <MotionControls value={prefs.motion} onChange={motion => update({...prefs,motion})} />
@@ -50,4 +58,16 @@ export function App() {
       </div>
     </Popover>}
   </AppShell>{starting && <StartupScreen readiness="ready" animated={prefs.motion === 'full' && !matchMedia('(prefers-reduced-motion: reduce)').matches} onDone={done} appName="Swish" wordmark="Swish" messages={{opening:'OPENING SWISH',slow:'STILL OPENING',error:'STARTUP UNAVAILABLE'}} />}</>;
+}
+
+/** The status bar states only what actually happened. "Saved" requires a confirmed native commit. */
+function statusFor(preferenceError: boolean, load: 'loading' | 'ready' | 'error', save: SaveState): { tone: StatusTone; status: string } {
+  if (preferenceError) return { tone: 'error', status: 'PREFERENCES NOT SAVED — TRY AGAIN IN SETTINGS' };
+  if (load === 'error') return { tone: 'error', status: 'LOCAL DATA UNAVAILABLE' };
+  if (load === 'loading') return { tone: 'busy', status: 'OPENING LOCAL DATA' };
+  if (save.status === 'saving') return { tone: 'busy', status: 'SAVING…' };
+  if (save.status === 'error') return { tone: 'error', status: save.error.code === 'invalid' ? 'NOT SAVED — CHECK THE HIGHLIGHTED FIELD' : 'NOT SAVED — YOUR CHANGES ARE KEPT FOR RETRY' };
+  if (storage.kind === 'preview') return { tone: 'idle', status: 'BROWSER PREVIEW · NOT SAVING TO DISK' };
+  if (save.status === 'saved') return { tone: 'ok', status: 'SAVED' };
+  return { tone: 'idle', status: 'LOCAL DATA READY' };
 }

@@ -7,6 +7,7 @@ pub mod date;
 pub mod error;
 pub mod migrations;
 pub mod model;
+mod projects;
 pub mod store;
 
 pub use error::{ApiError, Error, Field};

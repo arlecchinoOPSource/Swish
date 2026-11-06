@@ -1,4 +1,4 @@
-import type { StorageError, Workspace } from './domain';
+import { checkProject, type Project, type ProjectInput, type StorageError, type Workspace } from './domain';
 
 /**
  * Where projects and reminders live. `native` is the desktop app's SQLite file;
@@ -8,6 +8,8 @@ import type { StorageError, Workspace } from './domain';
 export interface SwishStorage {
   readonly kind: 'native' | 'preview';
   loadWorkspace(): Promise<Workspace>;
+  createProject(input: ProjectInput): Promise<Project>;
+  updateProject(id: string, input: ProjectInput): Promise<Project>;
 }
 
 declare global {
@@ -25,6 +27,8 @@ class NativeStorage implements SwishStorage {
     return invoke<T>(command, args);
   }
   loadWorkspace() { return this.call<Workspace>('load_workspace'); }
+  createProject(input: ProjectInput) { return this.call<Project>('create_project', { input }); }
+  updateProject(id: string, input: ProjectInput) { return this.call<Project>('update_project', { id, input }); }
 }
 
 const previewFailure: StorageError = { code: 'storage', message: 'The browser preview simulated a storage failure. Nothing was changed.' };
@@ -38,6 +42,31 @@ export class PreviewStorage implements SwishStorage {
   }
   protected snapshot(): Workspace { return structuredClone(this.data); }
   async loadWorkspace() { this.fault('load'); return this.snapshot(); }
+  protected now() { return new Date().toISOString(); }
+  protected cleanProject(input: ProjectInput): ProjectInput {
+    const clean = { name: input.name.trim(), description: input.description.trim(), deadline: input.deadline.trim() };
+    const error = checkProject(clean);
+    if (error) throw error;
+    return clean;
+  }
+  async createProject(input: ProjectInput) {
+    const clean = this.cleanProject(input);
+    this.fault('write');
+    const now = this.now();
+    const project: Project = { id: crypto.randomUUID(), ...clean, createdAt: now, updatedAt: now };
+    this.data.projects.push(project);
+    this.data.projects.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt));
+    return structuredClone(project);
+  }
+  async updateProject(id: string, input: ProjectInput) {
+    const clean = this.cleanProject(input);
+    this.fault('write');
+    const project = this.data.projects.find(p => p.id === id);
+    if (!project) throw { code: 'notFound', message: 'That project no longer exists.' } satisfies StorageError;
+    Object.assign(project, clean, { updatedAt: this.now() });
+    this.data.projects.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt));
+    return structuredClone(project);
+  }
 }
 
 export function createStorage(): SwishStorage {

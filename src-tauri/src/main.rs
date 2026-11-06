@@ -2,7 +2,7 @@
 
 use std::sync::Mutex;
 
-use swish_data::{ApiError, DATABASE_FILE, Error, Store, Workspace};
+use swish_data::{ApiError, DATABASE_FILE, Error, Project, ProjectInput, Store, Workspace};
 use tauri::{Manager, State};
 
 /// The open store, or the reason it could not be opened. The window still starts so
@@ -36,6 +36,20 @@ fn load_workspace(storage: State<'_, Storage>) -> Result<Workspace, ApiError> {
     storage.with(|store| store.workspace())
 }
 
+#[tauri::command]
+fn create_project(storage: State<'_, Storage>, input: ProjectInput) -> Result<Project, ApiError> {
+    storage.with(|store| store.create_project(&input))
+}
+
+#[tauri::command]
+fn update_project(
+    storage: State<'_, Storage>,
+    id: String,
+    input: ProjectInput,
+) -> Result<Project, ApiError> {
+    storage.with(|store| store.update_project(&id, &input))
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -43,7 +57,11 @@ fn main() {
             app.manage(Storage(Mutex::new(store)));
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![load_workspace])
+        .invoke_handler(tauri::generate_handler![
+            load_workspace,
+            create_project,
+            update_project
+        ])
         .run(tauri::generate_context!())
         .expect("Swish could not start");
 }

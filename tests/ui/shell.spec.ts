@@ -22,15 +22,6 @@ test('toolbar-free shell fits minimum window and large text', async ({ page }) =
   await expect(page.locator('.toolbar')).toHaveCount(0);
   await expect(page.locator('.save-status')).toContainText('NOT SAVING');
 });
-test('sample cards use accessible completion and explicit unsaved state', async ({ page }) => {
- await page.goto('/');
- await page.getByRole('button',{name:'Preview sample layout'}).click();
- const check = page.getByRole('checkbox',{name:'Complete Debug the desktop shell'});
- await check.focus(); await page.keyboard.press('Space'); await expect(check).toBeChecked();
- await expect(page.getByText('Sample layout — changes are not saved.')).toBeVisible();
- await expect(page.getByRole('button',{name:'Delete Reminder'})).toHaveCount(3);
- await page.reload(); await expect(page.getByRole('checkbox',{name:'Complete Debug the desktop shell'})).toHaveCount(0);
-});
 test('preferences survive reload and OS reduced motion wins', async ({ page }) => {
  await page.goto('/'); await page.getByRole('button',{name:'Settings',exact:true}).click();
  await page.getByRole('combobox',{name:'Text size'}).selectOption('24');
@@ -63,9 +54,10 @@ test('playback rejection does not block navigation or completion', async ({ page
  await page.addInitScript(() => { HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException('Output unavailable', 'NotSupportedError')); });
  await page.goto('/'); await page.getByRole('button',{name:'Sounds',exact:true}).click();
  await page.getByRole('button',{name:'Preview Completion'}).click();
- await page.keyboard.press('Escape'); await page.getByRole('button',{name:'Preview sample layout'}).click();
- const check = page.getByRole('checkbox',{name:'Complete Debug the desktop shell'});
- await check.click(); await expect(check).toBeChecked();
+ await page.keyboard.press('Escape'); await page.getByRole('button',{name:'New Project',exact:true}).click();
+ await page.getByLabel('Project name').fill('Synthetic sound check'); await page.getByLabel('Project deadline').fill('2026-12-01');
+ await page.getByRole('button',{name:'Create project',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Synthetic sound check'})).toBeVisible();
  await page.getByRole('button',{name:'Settings',exact:true}).click();
  await expect(page.getByRole('combobox',{name:'Text size'})).toBeVisible();
 });
