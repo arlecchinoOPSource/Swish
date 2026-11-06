@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, Rail, BrandMark, IdentityStrip, StatusBar, IconButton, SvgIcon, Popover, applyTheme, applyMotion, effectiveMotion, createSoundManager, bindSoundLifecycle, ThemeControls, SoundControls, MotionControls, StartupScreen } from '@arlecchino/suite-ui';
 import { loadPreferences, KEY, type Preferences } from './preferences';
 import { Canvas } from './Canvas';
+import { createStorage } from './storage';
+import { useWorkspace } from './useWorkspace';
 const sounds = createSoundManager();
+const storage = createStorage();
 type Panel = 'Search' | 'Create' | 'Themes' | 'Sounds' | 'Settings';
 export function App() {
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -10,6 +13,7 @@ export function App() {
   const [preferenceError, setPreferenceError] = useState(false);
   const [starting, setStarting] = useState(prefs.startup);
   const done = useCallback(() => setStarting(false), []);
+  const data = useWorkspace(storage);
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
     try { localStorage.setItem(KEY, JSON.stringify(next)); setPreferenceError(false); } catch { setPreferenceError(true); }
@@ -31,8 +35,8 @@ export function App() {
     {action('Themes', 'themes')}{action('Sounds', 'sounds')}
   </Rail>}>
     <IdentityStrip wordmark="Swish" />
-    <Canvas onComplete={() => sounds.play('completion')} />
-    <StatusBar tone={preferenceError ? 'error' : 'idle'} status={preferenceError ? 'PREFERENCES NOT SAVED — TRY AGAIN IN SETTINGS' : 'EARLY PREVIEW · REMINDERS NOT SAVING'} />
+    <Canvas data={data.state} onRetry={data.reload} onComplete={() => sounds.play('completion')} />
+    <StatusBar tone={preferenceError || data.state.status === 'error' ? 'error' : data.state.status === 'loading' ? 'busy' : 'idle'} status={preferenceError ? 'PREFERENCES NOT SAVED — TRY AGAIN IN SETTINGS' : data.state.status === 'error' ? 'LOCAL DATA UNAVAILABLE' : storage.kind === 'preview' ? 'BROWSER PREVIEW · NOT SAVING TO DISK' : data.state.status === 'loading' ? 'OPENING LOCAL DATA' : 'LOCAL DATA READY'} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">
       {panel === 'Themes' ? <ThemeControls value={prefs.theme} onChange={theme => update({...prefs,theme})} /> : panel === 'Search' ? <><label htmlFor="search">Search reminders</label><input id="search" className="suite-input" type="search" placeholder="Project, title, or text" /><p>No saved reminders to search yet.</p></> : panel === 'Create' ? <><p>Project and reminder creation arrives with local storage.</p><button className="suite-button" disabled>New Project</button> <button className="suite-button" disabled>New Reminder</button></> : panel === 'Sounds' ? <SoundControls value={prefs.audio} onChange={audio => update({...prefs,audio})} onPreview={cue => sounds.play(cue,true)} /> : <>

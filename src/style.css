@@ -20,3 +20,5 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .due, .completion-label { color:var(--text-2); font-size:.85em; }
 .sample-notice { max-width:960px; margin:0 auto 20px; }
 .reminder .destructive { width:100%; }
+.storage-error { border-color: var(--danger); }
+.storage-error h2 { color: var(--danger); }
