@@ -4,11 +4,15 @@ permissions:
   contents: read
 jobs:
   web-foundation:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - name: Read pinned Core commit
         id: core
+        shell: bash
         run: echo "sha=$(git rev-parse HEAD:vendor/arlecchino-core)" >> "$GITHUB_OUTPUT"
       - name: Check out pinned private Core
         uses: actions/checkout@v4
@@ -25,3 +29,8 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm test --prefix vendor/arlecchino-core
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: npm run build:native -- -- --locked
+      - run: npx playwright install chromium webkit
+      - run: npm run test:ui
