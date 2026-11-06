@@ -51,3 +51,8 @@ export function checkReminder(input: ReminderInput): StorageError | null {
   if (input.dueDate && !isCalendarDate(input.dueDate)) return { code: 'invalid', field: 'dueDate', message: 'Due date must be a real date written as YYYY-MM-DD, or left empty.' };
   return null;
 }
+
+/** Progress is always derived from the project's reminders, never stored. */
+export function progressOf(reminders: Reminder[]): { done: number; total: number } {
+  return { done: reminders.filter(r => r.completedAt !== null).length, total: reminders.length };
+}

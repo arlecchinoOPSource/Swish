@@ -195,6 +195,12 @@
           "markdownDescription": "Enables the load_workspace command without any pre-configured scope."
         },
         {
+          "description": "Enables the set_reminder_completed command without any pre-configured scope.",
+          "type": "string",
+          "const": "allow-set-reminder-completed",
+          "markdownDescription": "Enables the set_reminder_completed command without any pre-configured scope."
+        },
+        {
           "description": "Enables the update_project command without any pre-configured scope.",
           "type": "string",
           "const": "allow-update-project",
@@ -223,6 +229,12 @@
           "type": "string",
           "const": "deny-load-workspace",
           "markdownDescription": "Denies the load_workspace command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_reminder_completed command without any pre-configured scope.",
+          "type": "string",
+          "const": "deny-set-reminder-completed",
+          "markdownDescription": "Denies the set_reminder_completed command without any pre-configured scope."
         },
         {
           "description": "Denies the update_project command without any pre-configured scope.",

@@ -12,6 +12,7 @@ export interface SwishStorage {
   updateProject(id: string, input: ProjectInput): Promise<Project>;
   createReminder(input: ReminderInput): Promise<Reminder>;
   updateReminder(id: string, input: ReminderInput): Promise<Reminder>;
+  setReminderCompleted(id: string, completed: boolean): Promise<Reminder>;
 }
 
 declare global {
@@ -33,6 +34,7 @@ class NativeStorage implements SwishStorage {
   updateProject(id: string, input: ProjectInput) { return this.call<Project>('update_project', { id, input }); }
   createReminder(input: ReminderInput) { return this.call<Reminder>('create_reminder', { input }); }
   updateReminder(id: string, input: ReminderInput) { return this.call<Reminder>('update_reminder', { id, input }); }
+  setReminderCompleted(id: string, completed: boolean) { return this.call<Reminder>('set_reminder_completed', { id, completed }); }
 }
 
 const previewFailure: StorageError = { code: 'storage', message: 'The browser preview simulated a storage failure. Nothing was changed.' };
@@ -92,6 +94,13 @@ export class PreviewStorage implements SwishStorage {
     const reminder = this.data.reminders.find(r => r.id === id);
     if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
     Object.assign(reminder, clean, { updatedAt: this.now() });
+    return structuredClone(reminder);
+  }
+  async setReminderCompleted(id: string, completed: boolean) {
+    this.fault('write');
+    const reminder = this.data.reminders.find(r => r.id === id);
+    if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
+    if (completed !== (reminder.completedAt !== null)) Object.assign(reminder, { completedAt: completed ? this.now() : null, updatedAt: this.now() });
     return structuredClone(reminder);
   }
 }

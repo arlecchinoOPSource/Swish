@@ -79,3 +79,25 @@ impl Store {
             .optional()?)
     }
 }
+
+impl Store {
+    /// Marks a reminder completed or open again. Completing never deletes; repeating
+    /// the same state keeps the original completion time.
+    pub fn set_completed(&mut self, id: &str, completed: bool) -> Result<Reminder, Error> {
+        let id = validate_id(id, Field::Id)?;
+        let now = now_timestamp();
+        self.write(|tx| {
+            let changed = tx.execute(
+                "UPDATE reminders SET
+                    completed_at = CASE WHEN ?2 THEN coalesce(completed_at, ?3) ELSE NULL END,
+                    updated_at = CASE WHEN (completed_at IS NOT NULL) = ?2 THEN updated_at ELSE ?3 END
+                 WHERE id = ?1",
+                params![id, completed, now],
+            )?;
+            if changed == 0 {
+                return Err(Error::NotFound { entity: "reminder" });
+            }
+            select(tx, &id)
+        })
+    }
+}

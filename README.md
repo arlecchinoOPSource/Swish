@@ -19,7 +19,7 @@ npm ci
 npm run dev
 ```
 
-For an existing clone: `git submodule update --init --recursive` before installing. Private repository access is required. Use Node 24. Run `npm run check` for strict typechecking and a production web build. This preview has disabled product controls and no persistence; its status explicitly says so. Use `npm run dev:web` for browser-only preview, `npm run dev` for Tauri, and `npm run build:native` for a native binary.
+For an existing clone: `git submodule update --init --recursive` before installing. Private repository access is required. Use Node 24. Run `npm run check` for strict typechecking and a production web build. Run `cargo test --manifest-path src-tauri/Cargo.toml -p swish-data` for the storage tests. Use `npm run dev:web` for browser-only preview, `npm run dev` for Tauri, and `npm run build:native` for a native binary.
 
 Shared UI changes belong in Core. See the [integration contract](docs/ARCHITECTURE.md); do not fork shared styling inside this repository.
 

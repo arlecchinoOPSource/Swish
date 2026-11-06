@@ -9,6 +9,7 @@
     "allow-create-project",
     "allow-update-project",
     "allow-create-reminder",
-    "allow-update-reminder"
+    "allow-update-reminder",
+    "allow-set-reminder-completed"
   ]
 }

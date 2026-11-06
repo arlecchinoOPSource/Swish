@@ -70,6 +70,15 @@ fn update_reminder(
     storage.with(|store| store.update_reminder(&id, &input))
 }
 
+#[tauri::command]
+fn set_reminder_completed(
+    storage: State<'_, Storage>,
+    id: String,
+    completed: bool,
+) -> Result<Reminder, ApiError> {
+    storage.with(|store| store.set_completed(&id, completed))
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -82,7 +91,8 @@ fn main() {
             create_project,
             update_project,
             create_reminder,
-            update_reminder
+            update_reminder,
+            set_reminder_completed
         ])
         .run(tauri::generate_context!())
         .expect("Swish could not start");

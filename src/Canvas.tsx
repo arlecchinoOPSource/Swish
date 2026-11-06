@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { CompletionControl } from '@arlecchino/suite-ui';
-import { formatDate, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError } from './domain';
+import { formatDate, progressOf, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError } from './domain';
 import { ProjectForm } from './ProjectForm';
 import { ReminderForm } from './ReminderForm';
 import type { WorkspaceState } from './useWorkspace';
@@ -20,11 +20,12 @@ type Props = {
   onEdit: (editing: Editing) => void;
   saveProject: (id: string | null, input: ProjectInput) => SaveResult;
   saveReminder: (id: string | null, input: ReminderInput) => SaveResult;
+  setCompleted: (id: string, completed: boolean) => Promise<StorageError | null>;
 };
 
 const emptyProject: ProjectInput = { name: '', description: '', deadline: '' };
 
-export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveReminder }: Props) {
+export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveReminder, setCompleted }: Props) {
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   useEffect(() => {
     if (!focusTarget) return;
@@ -45,7 +46,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
         initial={{ projectId: reminder.projectId, title: reminder.title, text: reminder.text, dueDate: reminder.dueDate }}
         onCancel={() => closeEditor(`edit-${reminder.id}`)}
         onSubmit={async input => { const r = await saveReminder(reminder.id, input); if (!r.error) closeEditor(`edit-${reminder.id}`); return r.error; }} />
-    : <ReminderCard key={reminder.id} reminder={reminder} onEdit={() => onEdit({ kind: 'reminder', id: reminder.id })} />;
+    : <ReminderCard key={reminder.id} reminder={reminder} onEdit={() => onEdit({ kind: 'reminder', id: reminder.id })} onToggle={completed => setCompleted(reminder.id, completed)} />;
 
   /** Reminders for one context plus its create form when open. */
   const collection = (projectId: string | null, label: string, empty: string): ReactNode => {
@@ -79,20 +80,25 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
           if (!result.error) closeEditor(`edit-${project.id}`);
           return result.error;
         }} />
-      : <ProjectPanel key={project.id} project={project} onEdit={() => onEdit({ kind: 'project', id: project.id })}>
+      : <ProjectPanel key={project.id} project={project} reminders={reminders.filter(r => r.projectId === project.id)} onEdit={() => onEdit({ kind: 'project', id: project.id })}>
           {collection(project.id, project.name, 'No reminders in this project yet.')}
         </ProjectPanel>)}
     <section className="project" aria-labelledby="regular-reminders"><h2 id="regular-reminders">Regular Reminders</h2>{collection(null, 'Regular Reminders', 'No reminders yet.')}</section>
   </main>;
 }
 
-function ProjectPanel({ project, onEdit, children }: { project: Project; onEdit: () => void; children: ReactNode }) {
+function ProjectPanel({ project, reminders, onEdit, children }: { project: Project; reminders: Reminder[]; onEdit: () => void; children: ReactNode }) {
+  const { done, total } = progressOf(reminders);
   return <section className="project" aria-labelledby={`project-${project.id}`}>
     <header className="project-heading">
       <h2 id={`project-${project.id}`} tabIndex={-1}>{project.name}</h2>
       <span className="due">Deadline <time dateTime={project.deadline}>{formatDate(project.deadline)}</time></span>
     </header>
     {project.description && <p className="project-description">{project.description}</p>}
+    <div className="project-progress" data-complete={total > 0 && done === total}>
+      <span className="progress-text">{total === 0 ? 'No reminders to complete yet' : `${done} of ${total} completed${done === total ? ' — all done' : ''}`}</span>
+      <span className="progress-track" aria-hidden="true"><span style={{ width: total ? `${(done / total) * 100}%` : '0%' }} /></span>
+    </div>
     {children}
     <div className="entity-actions">
       <button id={`edit-${project.id}`} type="button" className="suite-button" onClick={onEdit} aria-label={`Edit project ${project.name}`}>Edit Project</button>
@@ -101,18 +107,34 @@ function ProjectPanel({ project, onEdit, children }: { project: Project; onEdit:
   </section>;
 }
 
-function ReminderCard({ reminder, onEdit }: { reminder: Reminder; onEdit: () => void }) {
+function ReminderCard({ reminder, onEdit, onToggle }: { reminder: Reminder; onEdit: () => void; onToggle: (completed: boolean) => Promise<StorageError | null> }) {
   const done = reminder.completedAt !== null;
-  return <article className="reminder" aria-labelledby={`reminder-${reminder.id}`} data-completed={done}>
+  const [pending, setPending] = useState<boolean | null>(null);
+  const [failed, setFailed] = useState<{ wanted: boolean; error: StorageError } | null>(null);
+  async function toggle(wanted: boolean) {
+    if (pending !== null) return;
+    setPending(wanted);
+    setFailed(null);
+    const error = await onToggle(wanted);
+    setPending(null);
+    // On failure the control keeps showing the stored state; nothing is assumed saved.
+    if (error) setFailed({ wanted, error });
+  }
+  const label = pending !== null ? (pending ? 'Saving completion…' : 'Saving reopen…') : done ? 'Completed' : 'Not completed';
+  return <article className="reminder" aria-labelledby={`reminder-${reminder.id}`} data-completed={done} aria-busy={pending !== null}>
     <div className="reminder-body">
       <div>
         <h3 id={`reminder-${reminder.id}`} tabIndex={-1}>{reminder.title}</h3>
         {reminder.dueDate && <p className="due">Due <time dateTime={reminder.dueDate}>{formatDate(reminder.dueDate)}</time></p>}
         {reminder.text && <p className="reminder-text">{reminder.text}</p>}
-        <span className="completion-label">{done ? 'Completed' : 'Not completed'}</span>
+        <span className="completion-label">{done && pending === null ? '✓ ' : ''}{label}</span>
       </div>
-      <CompletionControl label={`Complete ${reminder.title}`} checked={done} disabled onChange={() => undefined} />
+      <CompletionControl label={`Complete ${reminder.title}`} checked={done} disabled={pending !== null} onChange={toggle} />
     </div>
+    {failed && <div className="form-error card-error" role="alert">
+      {failed.wanted ? 'Not marked complete' : 'Not reopened'}: {failed.error.message}
+      <button type="button" className="suite-button" onClick={() => toggle(failed.wanted)}>Retry</button>
+    </div>}
     <div className="entity-actions">
       <button id={`edit-${reminder.id}`} type="button" className="suite-button" onClick={onEdit} aria-label={`Edit reminder ${reminder.title}`}>Edit Reminder</button>
     </div>

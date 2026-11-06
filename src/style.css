@@ -38,3 +38,10 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .reminder.entity-form { border-color: var(--phosphor); }
 /* Never clip a form inside the scrolling list; the list grows while editing. */
 .project-reminders:has(form) { max-height: none; }
+.project-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin: 0 0 16px; color: var(--text-2); font-size: .85em; }
+.progress-track { flex: 1 1 120px; height: 8px; border: 1px solid var(--line-3); position: relative; }
+.progress-track > span { position: absolute; inset: 1px auto 1px 1px; max-width: calc(100% - 2px); background: var(--phosphor); transition: width var(--motion-status, .2s) var(--ease, ease); }
+.project-progress[data-complete='true'] .progress-text { color: var(--phosphor); }
+.reminder[data-completed='true'] h3 { opacity: .75; }
+.reminder[data-completed='true'] .completion-label { color: var(--phosphor); }
+.card-error { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 12px; }
