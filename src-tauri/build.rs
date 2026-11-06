@@ -12,6 +12,11 @@ fn main() {
             "delete_project",
             "delete_reminder",
             "restore_reminder",
+            "export_backup",
+            "inspect_backup",
+            "cancel_restore",
+            "restore_backup",
+            "undo_restore",
         ]),
     ))
     .expect("failed to run tauri-build");

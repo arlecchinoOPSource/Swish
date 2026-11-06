@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod backup_commands;
+
 use std::sync::Mutex;
 
 use swish_data::{
@@ -10,10 +12,13 @@ use tauri::{Manager, State};
 
 /// The open store, or the reason it could not be opened. The window still starts so
 /// the UI can explain the failure instead of crashing.
-struct Storage(Mutex<Result<Store, ApiError>>);
+pub struct Storage(Mutex<Result<Store, ApiError>>);
 
 impl Storage {
-    fn with<T>(&self, work: impl FnOnce(&mut Store) -> Result<T, Error>) -> Result<T, ApiError> {
+    pub fn with<T>(
+        &self,
+        work: impl FnOnce(&mut Store) -> Result<T, Error>,
+    ) -> Result<T, ApiError> {
         // A panic mid-write already rolled its transaction back; the connection stays usable.
         let mut guard = self
             .0
@@ -100,6 +105,9 @@ fn restore_reminder(storage: State<'_, Storage>, reminder: Reminder) -> Result<R
 
 fn main() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .manage(backup_commands::PendingRestore::default())
+        .manage(backup_commands::LastSafetyCopy::default())
         .setup(|app| {
             let store = open_store(app);
             app.manage(Storage(Mutex::new(store)));
@@ -114,7 +122,12 @@ fn main() {
             set_reminder_completed,
             delete_project,
             delete_reminder,
-            restore_reminder
+            restore_reminder,
+            backup_commands::export_backup,
+            backup_commands::inspect_backup,
+            backup_commands::cancel_restore,
+            backup_commands::restore_backup,
+            backup_commands::undo_restore
         ])
         .run(tauri::generate_context!())
         .expect("Swish could not start");

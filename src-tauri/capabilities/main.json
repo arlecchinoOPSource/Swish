@@ -13,6 +13,11 @@
     "allow-set-reminder-completed",
     "allow-delete-project",
     "allow-delete-reminder",
-    "allow-restore-reminder"
+    "allow-restore-reminder",
+    "allow-export-backup",
+    "allow-inspect-backup",
+    "allow-cancel-restore",
+    "allow-restore-backup",
+    "allow-undo-restore"
   ]
 }

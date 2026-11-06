@@ -1,13 +1,13 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import type { StorageError } from './domain';
 
-type Props = { title: string; children: ReactNode; confirmLabel: string; onConfirm: () => Promise<StorageError | null>; onCancel: () => void };
+type Props = { title: string; children: ReactNode; confirmLabel: string; busyLabel?: string; onConfirm: () => Promise<StorageError | null>; onCancel: () => void };
 
 /**
  * Modal confirmation for irreversible actions. Cancel has initial focus, Escape
  * cancels, and a failed action keeps the dialog open with the reason and a retry.
  */
-export function ConfirmDialog({ title, children, confirmLabel, onConfirm, onCancel }: Props) {
+export function ConfirmDialog({ title, children, confirmLabel, busyLabel = 'Deleting…', onConfirm, onCancel }: Props) {
   const id = useId();
   const dialog = useRef<HTMLDialogElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -33,7 +33,7 @@ export function ConfirmDialog({ title, children, confirmLabel, onConfirm, onCanc
     {error && <p className="form-error" role="alert">{error.message}</p>}
     <div className="form-actions">
       <button ref={cancel} type="button" className="suite-button" disabled={busy} onClick={onCancel}>Cancel</button>
-      <button type="button" className="suite-button destructive" disabled={busy} onClick={confirm}>{busy ? 'Deleting…' : error ? `Retry: ${confirmLabel}` : confirmLabel}</button>
+      <button type="button" className="suite-button destructive" disabled={busy} onClick={confirm}>{busy ? busyLabel : error ? `Retry: ${confirmLabel}` : confirmLabel}</button>
     </div>
   </dialog>;
 }

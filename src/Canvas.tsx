@@ -28,11 +28,13 @@ type Props = {
   deleteProject: (id: string, expectedReminders: number) => Promise<StorageError | null>;
   deleteReminder: (id: string) => Promise<{ error: StorageError | null; removed?: Reminder }>;
   restoreReminder: (reminder: Reminder) => Promise<StorageError | null>;
+  /** App-level notice shown at the top of the canvas (e.g. after a restore). */
+  banner?: ReactNode;
 };
 
 const emptyProject: ProjectInput = { name: '', description: '', deadline: '' };
 
-export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveReminder, setCompleted, deleteProject, deleteReminder, restoreReminder }: Props) {
+export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveReminder, setCompleted, deleteProject, deleteReminder, restoreReminder, banner }: Props) {
   const [focusTarget, setFocusTarget] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ project: Project; count: number } | null>(null);
   const [undo, setUndo] = useState<Reminder | null>(null);
@@ -119,6 +121,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
   };
 
   return <main className="swish-canvas">
+    {banner}
     <div className="canvas-heading"><h1>Projects</h1><button id="new-project" type="button" className="suite-button" disabled={editing?.kind === 'new-project'} onClick={() => onEdit({ kind: 'new-project' })}>New Project</button></div>
     {waiting.length > 0 && <section className="project recovered-drafts" aria-labelledby="recovered-drafts">
       <h2 id="recovered-drafts">Unsaved changes kept on this device</h2>

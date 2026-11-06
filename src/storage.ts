@@ -1,3 +1,4 @@
+import { countsOf, parseBackup, suggestedFileName, toBackup, type BackupFile, type Counts, type ExportResult, type InspectResult, type RestoreResult } from './backup';
 import { checkProject, checkReminder, type DeletedProject, type Project, type ProjectInput, type Reminder, type ReminderInput, type StorageError, type Workspace } from './domain';
 
 /**
@@ -19,6 +20,15 @@ export interface SwishStorage {
   deleteReminder(id: string): Promise<Reminder>;
   /** Restores a deleted reminder with its original ID and history. */
   restoreReminder(reminder: Reminder): Promise<Reminder>;
+  /** Saves a backup file chosen by the user. */
+  exportBackup(): Promise<ExportResult>;
+  /** Lets the user choose a backup and validates it without changing anything. */
+  inspectBackup(): Promise<InspectResult>;
+  cancelRestore(): Promise<void>;
+  /** Saves a safety copy, then replaces all data with the inspected backup. */
+  restoreBackup(token: string): Promise<RestoreResult>;
+  /** Puts back the data replaced by the last restore. */
+  undoRestore(): Promise<Counts>;
 }
 
 declare global {
@@ -48,6 +58,11 @@ class NativeStorage implements SwishStorage {
   deleteProject(id: string, expectedReminders: number) { return this.call<DeletedProject>('delete_project', { id, expectedReminders }); }
   deleteReminder(id: string) { return this.call<Reminder>('delete_reminder', { id }); }
   restoreReminder(reminder: Reminder) { return this.call<Reminder>('restore_reminder', { reminder }); }
+  exportBackup() { return this.call<ExportResult>('export_backup'); }
+  inspectBackup() { return this.call<InspectResult>('inspect_backup'); }
+  cancelRestore() { return this.call<void>('cancel_restore'); }
+  restoreBackup(token: string) { return this.call<RestoreResult>('restore_backup', { token }); }
+  undoRestore() { return this.call<Counts>('undo_restore'); }
 }
 
 const previewFailure: StorageError = { code: 'storage', message: 'The browser preview simulated a storage failure. Nothing was changed.' };
@@ -152,6 +167,52 @@ export class PreviewStorage implements SwishStorage {
     this.data.reminders.push(reminder);
     this.data.reminders.sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id));
     return structuredClone(reminder);
+  }
+  private pending: { token: string; backup: BackupFile } | null = null;
+  private safety: Workspace | null = null;
+  /** Browser download; the browser decides where it goes. */
+  async exportBackup(): Promise<ExportResult> {
+    const backup = toBackup(this.data);
+    const fileName = suggestedFileName(backup.exportedAt);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' }));
+    const link = Object.assign(document.createElement('a'), { href: url, download: fileName });
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return { status: 'saved', fileName, counts: countsOf(backup) };
+  }
+  async inspectBackup(): Promise<InspectResult> {
+    this.pending = null;
+    const file = await new Promise<File | null>(resolve => {
+      // Attached (but hidden): WebKit does not reliably fire events on detached file inputs.
+      const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json', hidden: true });
+      const done = (file: File | null) => { input.remove(); resolve(file); };
+      input.addEventListener('change', () => done(input.files?.[0] ?? null));
+      input.addEventListener('cancel', () => done(null));
+      document.body.append(input);
+      input.click();
+    });
+    if (!file) return { status: 'cancelled' };
+    const backup = parseBackup(await file.text());
+    const token = crypto.randomUUID();
+    this.pending = { token, backup };
+    return { status: 'ready', token, fileName: file.name, exportedAt: backup.exportedAt, backup: countsOf(backup), current: countsOf(this.data) };
+  }
+  async cancelRestore() { this.pending = null; }
+  async restoreBackup(token: string): Promise<RestoreResult> {
+    const pending = this.pending;
+    if (!pending || pending.token !== token) throw { code: 'changed', message: 'That backup is no longer selected. Choose the file again.' } satisfies StorageError;
+    await this.writing();
+    this.pending = null;
+    this.safety = structuredClone(this.data);
+    this.data = { projects: structuredClone(pending.backup.projects), reminders: structuredClone(pending.backup.reminders) };
+    return { restored: countsOf(this.data), safetyCopy: 'kept in memory (browser preview)' };
+  }
+  async undoRestore(): Promise<Counts> {
+    if (!this.safety) throw { code: 'changed', message: 'There is no restore to undo.' } satisfies StorageError;
+    await this.writing();
+    this.data = this.safety;
+    this.safety = null;
+    return countsOf(this.data);
   }
 }
 
