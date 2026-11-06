@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppShell, Rail, BrandMark, IdentityStrip, StatusBar, IconButton, SvgIcon, Popover, type StatusTone, applyTheme, applyMotion, effectiveMotion, createSoundManager, bindSoundLifecycle, ThemeControls, SoundControls, MotionControls, StartupScreen } from '@arlecchino/suite-ui';
 import { loadPreferences, KEY, type Preferences } from './preferences';
 import { Canvas, type Editing } from './Canvas';
-import type { ProjectInput, Reminder, ReminderInput } from './domain';
+import { ConfirmDialog } from './ConfirmDialog';
+import type { Counts, InspectResult } from './backup';
+import { formatDate, toStorageError, type ProjectInput, type Reminder, type ReminderInput, type StorageError } from './domain';
 import { createStorage } from './storage';
 import { SearchPanel } from './SearchPanel';
 import type { SearchResult } from './search';
@@ -60,6 +62,47 @@ export function App() {
       setTimeout(() => card?.removeAttribute('data-search-hit'), 2400);
     });
   }
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const describe = (c: Counts) => `${plural(c.projects, 'project')} and ${plural(c.reminders, 'reminder')}`;
+  const [backupNote, setBackupNote] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [restoreOffer, setRestoreOffer] = useState<Extract<InspectResult, { status: 'ready' }> | null>(null);
+  const [restored, setRestored] = useState<{ text: string; error: StorageError | null; busy: boolean } | null>(null);
+  async function exportBackup() {
+    setBackupBusy(true); setBackupNote(null);
+    try {
+      const result = await storage.exportBackup();
+      if (result.status === 'saved') setBackupNote({ tone: 'ok', text: `Backup saved as ${result.fileName} (${describe(result.counts)}).` });
+    } catch (e) { setBackupNote({ tone: 'error', text: `Backup not saved: ${toStorageError(e).message}` }); }
+    setBackupBusy(false);
+  }
+  async function chooseBackup() {
+    setBackupBusy(true); setBackupNote(null);
+    try {
+      const result = await storage.inspectBackup();
+      if (result.status === 'ready') { setPanel(null); setRestoreOffer(result); }
+    } catch (e) { setBackupNote({ tone: 'error', text: toStorageError(e).message }); }
+    setBackupBusy(false);
+  }
+  async function confirmRestore(offer: Extract<InspectResult, { status: 'ready' }>): Promise<StorageError | null> {
+    try {
+      const result = await storage.restoreBackup(offer.token);
+      setRestoreOffer(null);
+      setEditing(null);
+      await data.reload();
+      setRestored({ text: `Restored ${describe(result.restored)} from ${offer.fileName}. Your previous data was saved first (${result.safetyCopy}).`, error: null, busy: false });
+      return null;
+    } catch (e) { return toStorageError(e); }
+  }
+  async function undoRestore() {
+    setRestored(r => r && { ...r, busy: true, error: null });
+    try {
+      const counts = await storage.undoRestore();
+      await data.reload();
+      setRestored(null);
+      setBackupNote({ tone: 'ok', text: `Restore undone: your previous ${describe(counts)} are back.` });
+    } catch (e) { setRestored(r => r && { ...r, busy: false, error: toStorageError(e) }); }
+  }
   function startCreate(next: Editing) { setPanel(null); setEditing(next); }
   function update(next: Preferences) {
     setPrefs(next); sounds.configure(next.audio);
@@ -82,7 +125,15 @@ export function App() {
     {action('Themes', 'themes')}{action('Sounds', 'sounds')}
   </Rail>}>
     <IdentityStrip wordmark="Swish" />
-    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} setCompleted={setCompleted} deleteProject={deleteProject} deleteReminder={deleteReminder} restoreReminder={restoreReminder} />
+    <Canvas data={data.state} onRetry={data.reload} editing={editing} onEdit={setEditing} saveProject={saveProject} saveReminder={saveReminder} setCompleted={setCompleted} deleteProject={deleteProject} deleteReminder={deleteReminder} restoreReminder={restoreReminder}
+      banner={restored && <section className="project restore-notice" role="status" aria-label="Restore complete">
+        <p>✓ {restored.text}</p>
+        {restored.error && <p className="form-error" role="alert">{restored.error.message}</p>}
+        <div className="form-actions">
+          <button type="button" className="suite-button" disabled={restored.busy} onClick={undoRestore}>{restored.busy ? 'Undoing…' : 'Undo restore'}</button>
+          <button type="button" className="suite-button" disabled={restored.busy} onClick={() => setRestored(null)}>Dismiss</button>
+        </div>
+      </section>} />
     <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
     {panel && <Popover key={panel} id="navigation-panel" title={panel === 'Create' ? 'Create Project / Reminder' : panel} triggerRef={trigger} onClose={() => setPanel(null)}>
       <div className="panel-content">
@@ -93,11 +144,26 @@ export function App() {
       <label className="suite-option"><input type="checkbox" checked={prefs.startup} onChange={e => update({...prefs,startup:e.target.checked})} />Startup screen</label>
       <p>Your system’s reduced-motion preference takes priority. Settings stay on this device.</p>
       <p>Due dates and deadlines are shown inside Swish only. Swish does not send background alerts or notifications.</p>
+      <fieldset className="backup-controls"><legend>Backup</legend>
+        <p>A backup is a file you save where you choose. Nothing is uploaded.</p>
+        <div className="form-actions">
+          <button type="button" className="suite-button" disabled={backupBusy || data.state.status !== 'ready'} onClick={exportBackup}>Export backup…</button>
+          <button type="button" className="suite-button" disabled={backupBusy || data.state.status !== 'ready'} onClick={chooseBackup}>Restore from backup…</button>
+        </div>
+        <p role="status" className={backupNote?.tone === 'error' ? 'form-error' : 'search-summary'}>{backupNote?.text ?? ''}</p>
+      </fieldset>
       {preferenceError && <button className="suite-button" onClick={() => update(prefs)}>Retry saving preferences</button>}
       </>}
       </div>
     </Popover>}
-  </AppShell>{starting && <StartupScreen readiness="ready" animated={prefs.motion === 'full' && !matchMedia('(prefers-reduced-motion: reduce)').matches} onDone={done} appName="Swish" wordmark="Swish" messages={{opening:'OPENING SWISH',slow:'STILL OPENING',error:'STARTUP UNAVAILABLE'}} />}</>;
+  </AppShell>
+  {restoreOffer && <ConfirmDialog title="Replace all data with this backup?" confirmLabel="Replace with backup" busyLabel="Restoring…"
+    onCancel={() => { setRestoreOffer(null); void storage.cancelRestore(); }}
+    onConfirm={() => confirmRestore(restoreOffer)}>
+    <p>Backup <strong>{restoreOffer.fileName}</strong>, exported {formatDate(restoreOffer.exportedAt.slice(0, 10))}: {describe(restoreOffer.backup)}.</p>
+    <p>Your current {describe(restoreOffer.current)} will be replaced. A safety copy of them is saved first, and you can undo right after restoring.</p>
+  </ConfirmDialog>}
+  {starting && <StartupScreen readiness="ready" animated={prefs.motion === 'full' && !matchMedia('(prefers-reduced-motion: reduce)').matches} onDone={done} appName="Swish" wordmark="Swish" messages={{opening:'OPENING SWISH',slow:'STILL OPENING',error:'STARTUP UNAVAILABLE'}} />}</>;
 }
 
 /** The status bar states only what actually happened. "Saved" requires a confirmed native commit. */

@@ -10,7 +10,7 @@ export type ProjectInput = { name: string; description: string; deadline: string
 export type ReminderInput = { projectId: string | null; title: string; text: string; dueDate: string | null };
 
 export type Field = 'id' | 'name' | 'description' | 'deadline' | 'projectId' | 'title' | 'text' | 'dueDate';
-export type StorageError = { code: 'invalid' | 'notFound' | 'changed' | 'schemaTooNew' | 'foreignDatabase' | 'storage' | 'unavailable'; field?: Field; message: string };
+export type StorageError = { code: 'invalid' | 'notFound' | 'changed' | 'invalidBackup' | 'schemaTooNew' | 'foreignDatabase' | 'storage' | 'unavailable'; field?: Field; message: string };
 
 export function isStorageError(value: unknown): value is StorageError {
   return typeof value === 'object' && value !== null && typeof (value as StorageError).code === 'string' && typeof (value as StorageError).message === 'string';

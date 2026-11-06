@@ -91,6 +91,10 @@ impl Store {
         })
     }
 
+    pub(crate) fn connection_mut(&mut self) -> &mut Connection {
+        &mut self.conn
+    }
+
     /// Direct connection access for migration and constraint tests.
     #[doc(hidden)]
     pub fn connection(&self) -> &Connection {

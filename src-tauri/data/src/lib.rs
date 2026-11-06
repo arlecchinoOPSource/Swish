@@ -3,6 +3,7 @@
 //! This crate has no Tauri dependency so its tests run on any machine. The native host
 //! (`src-tauri/src/main.rs`) owns paths, commands, and lifecycle.
 
+pub mod backup;
 pub mod date;
 mod deletion;
 pub mod error;

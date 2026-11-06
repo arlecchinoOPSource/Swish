@@ -26,6 +26,10 @@ pub enum Error {
     NotFound {
         entity: &'static str,
     },
+    /// A backup file failed validation; nothing was changed.
+    InvalidBackup {
+        message: String,
+    },
     /// Stored data no longer matches what the user confirmed; nothing was changed.
     Changed {
         message: String,
@@ -61,6 +65,7 @@ impl Error {
             Error::Invalid { .. } => "invalid",
             Error::NotFound { .. } => "notFound",
             Error::Changed { .. } => "changed",
+            Error::InvalidBackup { .. } => "invalidBackup",
             Error::SchemaTooNew { .. } => "schemaTooNew",
             Error::ForeignDatabase => "foreignDatabase",
             Error::Storage(_) | Error::Io(_) => "storage",
@@ -86,6 +91,7 @@ impl fmt::Display for Error {
             }
             Error::NotFound { entity } => write!(f, "That {entity} no longer exists."),
             Error::Changed { message } => write!(f, "{message}"),
+            Error::InvalidBackup { message } => write!(f, "{message} Nothing was changed."),
             Error::SchemaTooNew { found, supported } => write!(
                 f,
                 "This data was saved by a newer version of Swish (schema {found}; this version supports {supported}). Update Swish to open it."

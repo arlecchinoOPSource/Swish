@@ -69,3 +69,5 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .recovered-drafts ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .recovered-drafts li { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .recovered-drafts li > span:first-child { flex: 1 1 200px; overflow-wrap: anywhere; }
+.backup-controls { margin-top: 12px; padding: 8px 12px; }
+.restore-notice { border-color: var(--phosphor); }
