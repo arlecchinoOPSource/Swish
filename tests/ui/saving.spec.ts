@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 async function createReminder(page: Page, title: string, due = '') {
-  await page.getByRole('button', { name: 'New Regular Reminder' }).click();
+  await page.getByRole('button', { name: 'New Reminder in Regular Reminders' }).click();
   await page.getByLabel('Reminder header').fill(title);
   if (due) await page.getByLabel('Due date').fill(due);
   await page.getByRole('button', { name: 'Create reminder', exact: true }).click();

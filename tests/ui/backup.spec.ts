@@ -58,8 +58,8 @@ test('restore confirms counts, replaces everything, and can be undone', async ({
   const text = await exportBackup(page);
   const ids = JSON.parse(text).reminders.map((r: { id: string }) => r.id);
 
-  await createReminder(page, 'New Regular Reminder', 'Added after export');
-  await createReminder(page, 'New Regular Reminder', 'Also added after export');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Added after export');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Also added after export');
   await chooseFile(page, 'my-backup.json', text);
   const dialog = page.getByRole('dialog', { name: 'Replace all data with this backup?' });
   await expect(dialog).toContainText('my-backup.json');
@@ -80,9 +80,9 @@ test('restore confirms counts, replaces everything, and can be undone', async ({
 
 test('cancelling the confirmation or the file picker changes nothing', async ({ page }) => {
   await page.goto('/');
-  await createReminder(page, 'New Regular Reminder', 'Stays put');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Stays put');
   const text = await exportBackup(page);
-  await createReminder(page, 'New Regular Reminder', 'Also stays');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Also stays');
   await chooseFile(page, 'b.json', text);
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel' }).click();
   await expect(page.getByRole('heading', { name: 'Also stays' })).toBeVisible();
@@ -113,7 +113,7 @@ for (const [label, text, message] of [
 ] as const) {
   test(`rejects a backup with ${label} and changes nothing`, async ({ page }) => {
     await page.goto('/');
-    await createReminder(page, 'New Regular Reminder', 'Untouched');
+    await createReminder(page, 'New Reminder in Regular Reminders', 'Untouched');
     await chooseFile(page, 'bad.json', text);
     await expect(page.getByRole('dialog').getByRole('status')).toContainText(message);
     await expect(page.getByRole('dialog').getByRole('status')).toContainText('Nothing was changed.');
@@ -125,7 +125,7 @@ for (const [label, text, message] of [
 
 test('a failed restore keeps the confirmation open and retry succeeds', async ({ page }) => {
   await page.goto('/');
-  await createReminder(page, 'New Regular Reminder', 'Original');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Original');
   const text = envelope({ reminders: [reminder(R1, null)] });
   await chooseFile(page, 'ok.json', text);
   await page.evaluate(() => { window.__swishPreviewFault = 'write'; });

@@ -19,7 +19,7 @@ test('every project and reminder has a labelled red delete button', async ({ pag
   await page.goto('/');
   await createProject(page, 'Synthetic labels');
   await createReminder(page, 'New Reminder in Synthetic labels', 'In project');
-  await createReminder(page, 'New Regular Reminder', 'Regular one');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Regular one');
   await expect(page.getByRole('button', { name: 'Delete project Synthetic labels and its 1 reminder' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Delete reminder In project' })).toBeEnabled();
   await expect(page.getByRole('button', { name: 'Delete reminder Regular one' })).toBeEnabled();
@@ -32,7 +32,7 @@ test('project deletion confirms with the count; cancel and Escape change nothing
   await createReminder(page, 'New Reminder in Synthetic doomed', 'Child one');
   await createReminder(page, 'New Reminder in Synthetic doomed', 'Child two');
   await page.getByRole('checkbox', { name: 'Complete Child two' }).click();
-  await createReminder(page, 'New Regular Reminder', 'Survivor');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Survivor');
 
   const remove = page.getByRole('button', { name: /^Delete project Synthetic doomed/ });
   await remove.click();
@@ -72,7 +72,7 @@ test('a failed project delete keeps the dialog open with retry and nothing remov
 
 test('reminder deletion offers undo that restores identity and completion', async ({ page }) => {
   await page.goto('/');
-  await createReminder(page, 'New Regular Reminder', 'Comes back');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Comes back');
   const id = await page.getByRole('heading', { name: 'Comes back' }).getAttribute('id');
   await page.getByRole('checkbox', { name: 'Complete Comes back' }).click();
   await page.getByRole('button', { name: 'Delete reminder Comes back' }).click();
@@ -91,7 +91,7 @@ test('reminder deletion offers undo that restores identity and completion', asyn
 test('undo expires after the window unless focused, then deletion is final', async ({ page }) => {
   await page.clock.install();
   await page.goto('/');
-  await createReminder(page, 'New Regular Reminder', 'Really gone');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Really gone');
   await page.getByRole('button', { name: 'Delete reminder Really gone' }).click();
   const bar = page.getByRole('region', { name: 'Deleted reminder' });
   await expect(bar).toBeVisible();

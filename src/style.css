@@ -71,3 +71,5 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .recovered-drafts li > span:first-child { flex: 1 1 200px; overflow-wrap: anywhere; }
 .backup-controls { margin-top: 12px; padding: 8px 12px; }
 .restore-notice { border-color: var(--phosphor); }
+/* Keep focused items clear of the sticky undo bar (WCAG 2.4.11). */
+.swish-canvas:has(.undo-bar) { scroll-padding-bottom: calc(var(--undo-bar-height, 9rem) + 16px); }

@@ -43,7 +43,7 @@ test('finds names, headers, and text with project context, completed state, and 
   await page.goto('/');
   await createProject(page, 'Synthetic Café Tour', 'Bookings for the spring leg');
   await createReminder(page, 'New Reminder in Synthetic Café Tour', 'Confirm venues', 'Call the café in Lyon about the sound check');
-  await createReminder(page, 'New Regular Reminder', 'Cafe receipts');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Cafe receipts');
   await page.getByRole('checkbox', { name: 'Complete Cafe receipts' }).click();
   await openSearch(page);
   const box = page.getByLabel('Search projects and reminders');
@@ -70,7 +70,7 @@ test('finds names, headers, and text with project context, completed state, and 
 
 test('no-match and clear states', async ({ page }) => {
   await page.goto('/');
-  await createReminder(page, 'New Regular Reminder', 'Synthetic only');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Synthetic only');
   await openSearch(page);
   const box = page.getByLabel('Search projects and reminders');
   await box.fill('zebra');
@@ -86,7 +86,7 @@ test('keyboard navigation opens a result and focuses it on the canvas', async ({
   await page.goto('/');
   await createProject(page, 'Synthetic far away');
   for (let i = 1; i <= 5; i++) await createReminder(page, 'New Reminder in Synthetic far away', `Filler ${i}`, 'Long body '.repeat(40));
-  await createReminder(page, 'New Regular Reminder', 'Needle at the bottom');
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Needle at the bottom');
   await page.getByRole('heading', { name: 'Projects' }).scrollIntoViewIfNeeded();
   await openSearch(page);
   await page.keyboard.type('needle');
@@ -109,7 +109,7 @@ test('keyboard navigation opens a result and focuses it on the canvas', async ({
 test('long text produces a bounded excerpt and results stay inside a small window', async ({ page }) => {
   await page.setViewportSize({ width: 480, height: 400 });
   await page.goto('/');
-  await createReminder(page, 'New Regular Reminder', 'Long body', `${'start '.repeat(60)}findme${' end'.repeat(60)}`);
+  await createReminder(page, 'New Reminder in Regular Reminders', 'Long body', `${'start '.repeat(60)}findme${' end'.repeat(60)}`);
   await openSearch(page);
   await page.getByLabel('Search projects and reminders').fill('findme');
   const snippet = results(page).first().locator('.result-snippet');

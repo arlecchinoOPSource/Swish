@@ -115,7 +115,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
           onSubmit={async input => { const r = await saveReminder(null, input); if (!r.error) { d.forget(); closeEditor(`reminder-${r.id}`); } return r.error; }} />;
       })()}
       <div className="entity-actions">
-        <button id={opener} type="button" className="suite-button" disabled={creating} onClick={() => onEdit({ kind: 'new-reminder', projectId })} aria-label={projectId ? `New Reminder in ${label}` : 'New Regular Reminder'}>New Reminder</button>
+        <button id={opener} type="button" className="suite-button" disabled={creating} onClick={() => onEdit({ kind: 'new-reminder', projectId })} aria-label={projectId ? `New Reminder in ${label}` : 'New Reminder in Regular Reminders'}>New Reminder</button>
       </div>
     </>;
   };

@@ -17,6 +17,15 @@ export function UndoBar({ reminder, onUndo, onExpire }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<StorageError | null>(null);
   useEffect(() => { undo.current?.focus(); }, []);
+  // Tell the canvas how much room to keep clear when scrolling focus into view.
+  useEffect(() => {
+    const element = bar.current;
+    const canvas = element?.closest<HTMLElement>('.swish-canvas');
+    if (!element || !canvas) return;
+    const observer = new ResizeObserver(() => canvas.style.setProperty('--undo-bar-height', `${element.offsetHeight}px`));
+    observer.observe(element);
+    return () => { observer.disconnect(); canvas.style.removeProperty('--undo-bar-height'); };
+  }, []);
   // Count down against a wall-clock deadline that restarts from what was left after a pause.
   const left = useRef(UNDO_SECONDS * 1000);
   useEffect(() => {
