@@ -22,3 +22,13 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .reminder .destructive { width:100%; }
 .storage-error { border-color: var(--danger); }
 .storage-error h2 { color: var(--danger); }
+.entity-form { display: grid; gap: 8px; }
+.entity-form label { color: var(--text-2); font-size: .85em; margin-top: 6px; }
+.entity-form textarea { resize: vertical; font: inherit; }
+.entity-form [aria-invalid='true'] { border-color: var(--danger); }
+.required, .optional { font-size: .9em; }
+.form-error { color: var(--danger); margin: 4px 0 0; }
+.form-error::before { content: '⚠ '; }
+.form-actions, .entity-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.project .destructive { width: 100%; }
+.project-description { white-space: pre-wrap; }
