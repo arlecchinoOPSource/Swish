@@ -9,3 +9,7 @@ Swish preferences use the app-specific swish.preferences.v1 key; theme, font, te
 Audio defaults are quiet. Explicit previews respect mute and zero volume. Shared playback limits overlap, throttles repeated cues, handles failures and stops on backgrounding. Assets are bundled locally; provenance is in Core. Closing-window audio is not wired in this phase. Real native device output/system mute still needs manual verification; browser playback is not that evidence.
 
 Validation: Core tests, strict TypeScript/Vite build, native macOS build, Chromium/WebKit UI tests covering panels, keyboard completion, sample reset, persistent settings, OS motion override and audio decoding. Screenshots are in docs/screenshots. Final sensory acceptance remains open pending owner review and native sound/lifecycle evidence. No v1 release, reminder CRUD or storage migration is claimed.
+
+## Platform audio coverage
+
+Initial Windows native build and nine UI checks passed, but Windows Playwright WebKit did not complete PCM playback. Playback is therefore exercised on Windows Chromium and macOS Chromium/WebKit; the Windows WebKit playback-only case is explicitly skipped, not reported as a pass. All engines still test mute controls and rejected-playback recovery. Playwright documents platform-dependent codecs at https://playwright.dev/docs/browsers . Native device verification remains open.
