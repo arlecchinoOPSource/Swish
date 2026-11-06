@@ -23,4 +23,4 @@ For an existing clone: `git submodule update --init --recursive` before installi
 
 Shared UI changes belong in Core. See the [integration contract](docs/ARCHITECTURE.md); do not fork shared styling inside this repository.
 
-Automated consumer CI is staged as a manual workflow, pending approval for read-only Core access; see [CI setup](docs/CI.md). Local typecheck/build and Core contract tests pass.
+Automated consumer CI runs on pushes and pull requests with read-only Core access; see [CI setup](docs/CI.md). Local typecheck/build and Core contract tests pass.
