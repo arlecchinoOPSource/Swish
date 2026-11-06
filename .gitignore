@@ -11,3 +11,4 @@ target/
 playwright-report/
 test-results/
 native-e2e-report.json
+msedgedriver.log

@@ -23,6 +23,8 @@ async function populate(page: Page) {
 }
 
 async function audit(page: Page, label: string) {
+  // Panels fade in from half opacity; audit the settled interface, not a frame mid-animation.
+  await page.waitForFunction(() => document.getAnimations().every(a => a.playState !== 'running'));
   const results = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
   const summary = results.violations.map(v => `${v.id} (${v.impact}): ${v.nodes.length}× — ${v.nodes.slice(0, 3).map(n => n.target.join(' ')).join(' | ')}`);
   expect(summary, `${label}\n${summary.join('\n')}`).toEqual([]);

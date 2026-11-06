@@ -33,10 +33,20 @@ async function wd(method, path, body) {
 }
 
 /** One app launch with its own data folder; a new launch on the same folder is a restart. */
+// On Windows, SWISH_EDGEDRIVER drives Microsoft's Edge WebDriver directly with the same
+// capabilities tauri-driver sends, plus a verbose log CI can upload for diagnosis.
+const edgeDriver = windows ? process.env.SWISH_EDGEDRIVER : undefined;
+
 async function launch(dataDir, { fresh = false } = {}) {
-  const driver = spawn(driverBin, ['--port', String(PORT)], { env: { ...process.env, SWISH_DATA_DIR: dataDir }, stdio: 'ignore' });
+  const env = { ...process.env, SWISH_DATA_DIR: dataDir };
+  const driver = edgeDriver
+    ? spawn(edgeDriver, [`--port=${PORT}`, '--verbose', '--append-log', `--log-path=${resolve('msedgedriver.log')}`], { env, stdio: 'ignore' })
+    : spawn(driverBin, ['--port', String(PORT)], { env, stdio: 'ignore' });
   for (let i = 0; i < 50; i++) { try { await fetch(`http://127.0.0.1:${PORT}/status`); break; } catch { await sleep(200); } }
-  const session = await wd('POST', '/session', { capabilities: { alwaysMatch: { 'tauri:options': { application: app } } } });
+  const capabilities = edgeDriver
+    ? { browserName: 'webview2', 'ms:edgeOptions': { binary: app, webviewOptions: {} } }
+    : { 'tauri:options': { application: app } };
+  const session = await wd('POST', '/session', { capabilities: { alwaysMatch: capabilities } });
   const id = session.sessionId;
   const s = {
     async run(script, ...args) { return wd('POST', `/session/${id}/execute/sync`, { script, args }); },

@@ -81,10 +81,17 @@ jobs:
         run: xvfb-run -a npm run test:native
       - name: Native end-to-end (Windows)
         if: runner.os == 'Windows'
-        run: npm run test:native
+        shell: pwsh
+        run: |
+          Get-ItemProperty 'HKLM:\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}' -ErrorAction SilentlyContinue | Select-Object -Property pv
+          msedgedriver --version
+          $env:SWISH_EDGEDRIVER = (Get-Command msedgedriver).Source
+          npm run test:native
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: native-e2e-${{ matrix.os }}
-          path: native-e2e-report.json
+          path: |
+            native-e2e-report.json
+            msedgedriver.log
           if-no-files-found: ignore

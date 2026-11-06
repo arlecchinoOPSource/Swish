@@ -1,9 +1,12 @@
 import { test, expect, type Page } from '@playwright/test';
 
 /** Presses Tab until the focused element's accessible name matches; fails if unreachable. */
+/** WebKit, like Safari, moves Tab between fields only; Option+Tab reaches every control. */
+const tabKey = (page: Page) => page.context().browser()?.browserType().name() === 'webkit' ? 'Alt+Tab' : 'Tab';
+
 async function tabTo(page: Page, name: string | RegExp, max = 120) {
   for (let i = 0; i < max; i++) {
-    await page.keyboard.press('Tab');
+    await page.keyboard.press(tabKey(page));
     const label = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement | null;
       return el ? (el.getAttribute('aria-label') ?? el.innerText ?? '').trim() : '';
@@ -18,8 +21,12 @@ test('the whole reminder workflow works with the keyboard alone', async ({ page 
   await tabTo(page, 'New Project');
   await page.keyboard.press('Enter');
   await page.keyboard.type('Keyboard project');
-  await page.keyboard.press('Tab'); await page.keyboard.type('Made without a mouse');
-  await page.keyboard.press('Tab'); await page.keyboard.type('12012026');
+  await page.keyboard.press(tabKey(page)); await page.keyboard.type('Made without a mouse');
+  await page.keyboard.press(tabKey(page));
+  // Typed digits fill Chromium's date segments; WebKit's date control does not take
+  // typed digits (also seen natively on WebKitGTK), so it gets the value directly there.
+  if (tabKey(page) === 'Tab') await page.keyboard.type('12012026');
+  else await page.getByLabel('Project deadline').fill('2026-12-01');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Keyboard project' })).toBeFocused();
 
@@ -35,7 +42,7 @@ test('the whole reminder workflow works with the keyboard alone', async ({ page 
 
   await tabTo(page, 'Edit reminder Keyboard reminder');
   await page.keyboard.press('Enter');
-  await page.keyboard.press('Tab'); await page.keyboard.type('Edited by keyboard');
+  await page.keyboard.press(tabKey(page)); await page.keyboard.type('Edited by keyboard');
   await tabTo(page, 'Save reminder');
   await page.keyboard.press('Enter');
   await expect(page.getByText('Edited by keyboard')).toBeVisible();
@@ -46,7 +53,7 @@ test('the whole reminder workflow works with the keyboard alone', async ({ page 
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Keyboard reminder' })).toBeFocused();
 
-  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press(tabKey(page) === 'Tab' ? 'Shift+Tab' : 'Alt+Shift+Tab');
   await tabTo(page, 'Search');
   await page.keyboard.press('Enter');
   await page.keyboard.type('edited');
@@ -57,7 +64,7 @@ test('the whole reminder workflow works with the keyboard alone', async ({ page 
   await tabTo(page, /^Delete project Keyboard project/);
   await page.keyboard.press('Enter');
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Cancel' })).toBeFocused();
-  await page.keyboard.press('Tab');
+  await page.keyboard.press(tabKey(page));
   await page.keyboard.press('Enter');
   await expect(page.getByRole('heading', { name: 'Keyboard project' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'New Project', exact: true })).toBeFocused();
