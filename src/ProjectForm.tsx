@@ -1,5 +1,4 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
-import { Modal } from '@arlecchino/suite-ui';
 import { checkProject, type ProjectInput, type StorageError } from './domain';
 
 type Props = { modal?: boolean; title: string; initial: ProjectInput; submitLabel: string; onSubmit: (input: ProjectInput) => Promise<StorageError | null>; onCancel: () => void; onChange?: (values: ProjectInput) => void };
@@ -15,6 +14,13 @@ export function ProjectForm({ modal = false, title, initial, submitLabel, onSubm
   const [error, setError] = useState<StorageError | null>(null);
   const [busy, setBusy] = useState(false);
   const fields = { name: useRef<HTMLInputElement>(null), description: useRef<HTMLTextAreaElement>(null), deadline: useRef<HTMLInputElement>(null) };
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (!modal) return;
+    const element = dialog.current;
+    if (element && !element.open) element.showModal();
+    return () => { if (element?.open) element.close(); };
+  }, [modal]);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -39,5 +45,10 @@ export function ProjectForm({ modal = false, title, initial, submitLabel, onSubm
       <button type="button" className="suite-button" disabled={busy} onClick={onCancel}>Cancel</button>
     </div>
   </form>;
-  return modal ? <Modal id={`${id}-modal`} title={title} closeLabel="Close new project" returnFocus={document.getElementById("new-project")} onClose={onCancel} canClose={!busy}>{form}</Modal> : form;
+  if (!modal) return form;
+  return <dialog ref={dialog} className="project-modal" aria-labelledby={`${id}-title`}
+    onCancel={e => { e.preventDefault(); if (!busy) onCancel(); }}>
+    <button type="button" className="suite-button" aria-label="Close new project" disabled={busy} onClick={onCancel}>Close</button>
+    {form}
+  </dialog>;
 }
