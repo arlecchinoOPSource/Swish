@@ -237,7 +237,7 @@ export function App() {
     <p>Backup <strong>{restoreOffer.fileName}</strong>, exported {formatDate(restoreOffer.exportedAt.slice(0, 10))}: {describe(restoreOffer.backup)}.</p>
     <p>Your current {describe(restoreOffer.current)} will be replaced. A safety copy of them is saved first, and you can undo right after restoring.</p>
   </ConfirmDialog>}
-  {starting && <StartupScreen minimumDurationMs={2200} readiness={readiness} animated={animatedStartup} onDone={done} appName="Swish" wordmark="Swish" messages={{ opening: 'OPENING SWISH', slow: 'STILL OPENING YOUR PROJECTS', error: 'LOCAL DATA UNAVAILABLE' }} />}</>;
+  {starting && <StartupScreen readiness={readiness} animated={animatedStartup} onDone={done} appName="Swish" wordmark="Swish" messages={{ opening: 'OPENING SWISH', slow: 'STILL OPENING YOUR PROJECTS', error: 'LOCAL DATA UNAVAILABLE' }} />}</>;
 }
 
 /** The status bar states only what actually happened. "Saved" requires a confirmed native commit. */
