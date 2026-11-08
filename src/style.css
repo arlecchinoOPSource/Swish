@@ -60,7 +60,7 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .swish-canvas:has(.undo-bar) { scroll-padding-bottom: calc(var(--undo-bar-height, 9rem) + 16px); }
 
 /* Compact canvas: one readable column; actions share a row with Delete at its end. */
-:root { --canvas-width: 880px; }
+:root { --canvas-width: 760px; }
 h1, h2 { margin: 0; }
 .project-heading { margin: 0 0 4px; }
 .project-description { margin: 4px 0 0; color: var(--text-2); }
