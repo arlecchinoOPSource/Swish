@@ -145,7 +145,7 @@ export function Canvas({ data, onRetry, editing, onEdit, saveProject, saveRemind
     {draftsUnavailable && <p className="form-error" role="alert">Unsaved typing cannot be kept on this device right now; save forms before closing Swish.</p>}
     {editing?.kind === 'new-project' && (() => {
       const d = draftProps<ProjectInput>({ kind: 'new-project' }, emptyProject, v => `New project “${v.name.trim() || 'untitled'}”`);
-      return <ProjectForm title="New project" initial={d.initial} onChange={d.onChange} submitLabel="Create project" onCancel={() => { d.forget(); closeEditor('new-project'); }} onSubmit={async input => {
+      return <ProjectForm modal title="New project" initial={d.initial} onChange={d.onChange} submitLabel="Create project" onCancel={() => { d.forget(); closeEditor('new-project'); }} onSubmit={async input => {
         const result = await saveProject(null, input);
         if (!result.error) { d.forget(); closeEditor(`project-${result.id}`); }
         return result.error;

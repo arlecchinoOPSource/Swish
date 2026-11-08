@@ -18,7 +18,7 @@ test('create projects from the canvas and the rail, ordered by deadline', async 
 
   await page.getByRole('button', { name: 'Create Project / Reminder' }).click();
   await page.getByRole('dialog').getByRole('button', { name: /^New Project/ }).click();
-  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: 'New project', exact: true })).toBeVisible();
   await expect(page.getByLabel('Project name')).toBeFocused();
   await page.getByLabel('Project name').fill('Synthetic sooner plan');
   await page.getByLabel('Project deadline').fill('2026-12-15');

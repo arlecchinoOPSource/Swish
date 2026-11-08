@@ -43,3 +43,16 @@ test('failed data load is explained and retried without inventing empty data', a
  await expect(page.getByText('No projects yet.')).toBeVisible();
  await expect(page.locator('.save-status')).toContainText('NOT SAVING TO DISK');
 });
+
+test('requested popups are centred native modals with contained focus', async ({ page }) => {
+ await page.setViewportSize({width:1200,height:800});
+ await page.goto('/');
+ for(const name of ['Search','Create Project / Reminder','Themes','Sounds','New Project']) {
+  const opener=page.getByRole('button',{name,exact:true}); await opener.click();
+  const modal=page.locator('dialog:modal'); await expect(modal).toBeVisible();
+  const box=await modal.boundingBox(); expect(Math.abs(box!.x+box!.width/2-600)).toBeLessThan(3); expect(Math.abs(box!.y+box!.height/2-400)).toBeLessThan(3);
+  for(let i=0;i<15;i++) await page.keyboard.press('Tab');
+  expect(await modal.evaluate(e=>e.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press('Escape'); await expect(modal).toHaveCount(0); await expect(opener).toBeFocused();
+ }
+});

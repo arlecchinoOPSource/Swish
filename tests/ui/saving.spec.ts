@@ -118,6 +118,8 @@ test('switching to another form keeps the first draft; cancel and discard remove
   await expect(page.getByLabel('Reminder text')).toHaveValue('');
   await page.getByLabel('Reminder text').fill('Throw away');
   await page.getByRole('button', { name: 'New Project', exact: true }).click();
+  // Close the modal before interacting with the intentionally inert canvas.
+  await page.getByRole('button', { name: 'Cancel' }).click();
   await recovered.getByRole('button', { name: 'Discard Changes to reminder “Existing”' }).click();
   await expect(recovered).toHaveCount(0);
 });

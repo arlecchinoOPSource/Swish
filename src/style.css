@@ -16,7 +16,9 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .due, .completion-label { color:var(--text-2); font-size:.85em; }
 .storage-error { border-color: var(--danger); }
 .storage-error h2 { color: var(--danger); }
-.entity-form { display: grid; gap: 8px; }
+.entity-form { display: grid; gap: 8px; justify-content: stretch; }
+.suite-modal .project.entity-form { margin: 0; border: 0; grid-template-columns: minmax(0, 1fr); }
+.suite-modal .entity-form .suite-input { min-width: 0; width: 100%; }
 .entity-form label { color: var(--text-2); font-size: .85em; margin-top: 6px; }
 .entity-form textarea { resize: vertical; font: inherit; }
 .entity-form [aria-invalid='true'] { border-color: var(--danger); }
@@ -58,7 +60,7 @@ h3 { margin:0; color:var(--phosphor); font-size:1.1em; overflow-wrap:anywhere; }
 .swish-canvas:has(.undo-bar) { scroll-padding-bottom: calc(var(--undo-bar-height, 9rem) + 16px); }
 
 /* Compact canvas: one readable column; actions share a row with Delete at its end. */
-:root { --canvas-width: 760px; }
+:root { --canvas-width: 880px; }
 h1, h2 { margin: 0; }
 .project-heading { margin: 0 0 4px; }
 .project-description { margin: 4px 0 0; color: var(--text-2); }
