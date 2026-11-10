@@ -18,7 +18,12 @@ export function ProjectForm({ modal = false, title, initial, submitLabel, onSubm
   useEffect(() => {
     if (!modal) return;
     const element = dialog.current;
-    if (element && !element.open) element.showModal();
+    if (element && !element.open) {
+      element.showModal();
+      // showModal() focuses the dialog's first focusable control (Close), and React's autoFocus
+      // already ran while the dialog was closed, so put focus on the name field explicitly.
+      fields.name.current?.focus();
+    }
     return () => { if (element?.open) element.close(); };
   }, [modal]);
   async function submit(event: FormEvent) {

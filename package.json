@@ -10,6 +10,7 @@
     "dev": "tauri dev",
     "build": "tsc --noEmit && vite build",
     "check": "npm run build",
+    "check:version": "node scripts/check-version.mjs",
     "dev:web": "vite --host 127.0.0.1 --port 1420 --strictPort",
     "tauri": "tauri",
     "build:native": "tauri build --no-bundle",

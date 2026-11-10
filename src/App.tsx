@@ -183,7 +183,7 @@ export function App() {
     <StatusBar {...statusFor(preferenceError, data.state.status, data.save)} />
 
     {panel === 'Search' && <Popover key="search" id="navigation-panel" placement="search" title="Search" closeLabel="Close search" triggerRef={trigger} onClose={close}>
-      <SearchPanel workspace={data.state.status === 'ready' ? data.state.workspace : null} query={query} onQuery={setQuery} onOpen={openResult} />
+      <SearchPanel workspace={data.state.status === 'ready' ? data.state.workspace : null} query={query} onQuery={setQuery} onOpen={openResult} onClose={close} />
     </Popover>}
     {panel === 'Create' && <Popover key="create" id="navigation-panel" placement="list" title="Create Project / Reminder" closeLabel="Close create" triggerRef={trigger} onClose={close}>
       <ul className="archive-list create-list" aria-label="Create">
@@ -237,7 +237,7 @@ export function App() {
     <p>Backup <strong>{restoreOffer.fileName}</strong>, exported {formatDate(restoreOffer.exportedAt.slice(0, 10))}: {describe(restoreOffer.backup)}.</p>
     <p>Your current {describe(restoreOffer.current)} will be replaced. A safety copy of them is saved first, and you can undo right after restoring.</p>
   </ConfirmDialog>}
-  {starting && <StartupScreen readiness={readiness} animated={animatedStartup} onDone={done} appName="Swish" wordmark="Swish" messages={{ opening: 'OPENING SWISH', slow: 'STILL OPENING YOUR PROJECTS', error: 'LOCAL DATA UNAVAILABLE' }} />}</>;
+  {starting && <StartupScreen minimumDurationMs={2200} readiness={readiness} animated={animatedStartup} onDone={done} appName="Swish" wordmark="Swish" messages={{ opening: 'OPENING SWISH', slow: 'STILL OPENING YOUR PROJECTS', error: 'LOCAL DATA UNAVAILABLE' }} />}</>;
 }
 
 /** The status bar states only what actually happened. "Saved" requires a confirmed native commit. */

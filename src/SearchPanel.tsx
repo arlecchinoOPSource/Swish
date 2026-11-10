@@ -19,13 +19,13 @@ function Highlight({ text, queryTerms }: { text: string; queryTerms: string[] })
 
 const keyOf = (r: SearchResult) => r.kind === 'project' ? `p-${r.project.id}` : `r-${r.reminder.id}`;
 
-type Props = { workspace: Workspace | null; query: string; onQuery: (query: string) => void; onOpen: (result: SearchResult) => void };
+type Props = { workspace: Workspace | null; query: string; onQuery: (query: string) => void; onOpen: (result: SearchResult) => void; onClose: () => void };
 
 /**
  * Terminal-style search over project names and descriptions and reminder headers and
  * text: typing filters, Arrow/Home/End move the highlight, Enter or click opens.
  */
-export function SearchPanel({ workspace, query, onQuery, onOpen }: Props) {
+export function SearchPanel({ workspace, query, onQuery, onOpen, onClose }: Props) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [highlight, setHighlight] = useState(0);
@@ -37,6 +37,8 @@ export function SearchPanel({ workspace, query, onQuery, onOpen }: Props) {
   useEffect(() => { if (current) document.getElementById(`${id}-${keyOf(current)}`)?.scrollIntoView({ block: 'nearest' }); }, [id, current]);
 
   function keys(event: KeyboardEvent<HTMLInputElement>) {
+    // A search field clears itself on the first Escape and swallows the key; like Terminal, close at once.
+    if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
     if (event.key === 'Enter') { event.preventDefault(); if (current) onOpen(current); return; }
     const index = current ? shown.indexOf(current) : 0;
     const next = ({ ArrowDown: index + 1, ArrowUp: index - 1, Home: 0, End: shown.length - 1 } as Record<string, number>)[event.key];
