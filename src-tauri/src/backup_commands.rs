@@ -14,7 +14,7 @@ use swish_data::{ApiError, Error};
 use tauri::{AppHandle, State};
 use tauri_plugin_dialog::DialogExt;
 
-use crate::Storage;
+use crate::commands::Storage;
 
 /// A validated backup waiting for the user's confirmation.
 #[derive(Default)]
@@ -143,7 +143,6 @@ pub struct RestoreResult {
 
 #[tauri::command]
 pub fn restore_backup(
-    app: AppHandle,
     token: String,
     storage: State<'_, Storage>,
     pending: State<'_, PendingRestore>,
@@ -159,7 +158,7 @@ pub fn restore_backup(
             }));
         }
     };
-    let dir = crate::data_dir(&app)?.join("backups");
+    let dir = storage.data_dir().join("backups");
     let (restored, copy) = storage.with(|store| {
         // The safety copy must exist before anything is replaced.
         let copy = backup::write_safety_copy(&dir, &store.export_backup()?)?;
