@@ -248,3 +248,17 @@ fn oversized_files_are_refused_before_parsing() {
         "swish-backup-2026-11-06.json"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn restore_safety_copies_are_owner_only() {
+    use std::os::unix::fs::PermissionsExt;
+    let dir = std::env::temp_dir().join(format!("swish-private-copy-{}", new_id()));
+    let mut store = Store::open_in_memory().unwrap();
+    let copy =
+        backup::write_safety_copy(&dir.join("backups"), &store.export_backup().unwrap()).unwrap();
+    let mode = |p: &std::path::Path| std::fs::metadata(p).unwrap().permissions().mode() & 0o777;
+    assert_eq!(mode(&copy), 0o600);
+    assert_eq!(mode(&dir.join("backups")), 0o700);
+    let _ = std::fs::remove_dir_all(&dir);
+}

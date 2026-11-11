@@ -254,11 +254,23 @@ impl Store {
 /// Writes `contents` to `path` via a temporary file and rename, so a crash never
 /// leaves a half-written backup under the final name.
 pub fn write_atomically(path: &Path, contents: &str) -> Result<(), Error> {
+    write_file(path, contents, false)
+}
+
+/// Writes a file that only its owner may read (restore's safety copies hold everything that was replaced).
+fn write_private(path: &Path, contents: &str) -> Result<(), Error> {
+    write_file(path, contents, true)
+}
+
+fn write_file(path: &Path, contents: &str, private: bool) -> Result<(), Error> {
     use std::io::Write;
     let parent = path
         .parent()
         .ok_or_else(|| Error::Io(std::io::Error::other("no parent directory")))?;
     std::fs::create_dir_all(parent)?;
+    if private {
+        crate::store::restrict_to_owner(parent)?;
+    }
     let temp = parent.join(format!(
         ".{}.partial",
         path.file_name()
@@ -266,7 +278,13 @@ pub fn write_atomically(path: &Path, contents: &str) -> Result<(), Error> {
             .unwrap_or("swish-backup")
     ));
     {
-        let mut file = std::fs::File::create(&temp)?;
+        let mut options = std::fs::OpenOptions::new();
+        options.write(true).create(true).truncate(true);
+        #[cfg(unix)]
+        if private {
+            std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+        }
+        let mut file = options.open(&temp)?;
         file.write_all(contents.as_bytes())?;
         file.sync_all()?;
     }
@@ -292,7 +310,7 @@ pub fn read_backup_file(path: &Path) -> Result<ValidBackup, Error> {
 pub fn write_safety_copy(dir: &Path, backup: &Backup) -> Result<PathBuf, Error> {
     let stamp = backup.exported_at.replace([':', '.'], "-");
     let path = dir.join(format!("before-restore-{stamp}.json"));
-    write_atomically(&path, &backup.to_json())?;
+    write_private(&path, &backup.to_json())?;
     let mut copies: Vec<PathBuf> = std::fs::read_dir(dir)?
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| {

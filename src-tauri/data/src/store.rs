@@ -10,6 +10,20 @@ use crate::error::Error;
 use crate::migrations;
 use crate::model::{Project, Reminder, Workspace};
 
+/// Makes `path` readable by its owner only (Unix): folders `0700`, files `0600`. Windows profile folders are already
+/// private to the user, so this does nothing there. Terminal and Ember do the same for their data.
+pub fn restrict_to_owner(path: &Path) -> std::io::Result<()> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = if path.is_dir() { 0o700 } else { 0o600 };
+        std::fs::set_permissions(path, std::fs::Permissions::from_mode(mode))?;
+    }
+    #[cfg(not(unix))]
+    let _ = path;
+    Ok(())
+}
+
 /// File name inside the app's own data directory (`com.arlecchino.swish`).
 pub const DATABASE_FILE: &str = "swish.sqlite3";
 
@@ -26,7 +40,18 @@ impl Store {
     pub fn open(path: &Path) -> Result<Self, Error> {
         if let Some(parent) = path.parent() {
             std::fs::create_dir_all(parent)?;
+            restrict_to_owner(parent)?;
         }
+        // Create the file owner-only before SQLite opens it; SQLite gives its WAL and shared-memory files the same
+        // permissions as the database. A file that already exists (made by an earlier version) is tightened too.
+        if !path.exists() {
+            let mut options = std::fs::OpenOptions::new();
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            std::os::unix::fs::OpenOptionsExt::mode(&mut options, 0o600);
+            options.open(path)?;
+        }
+        restrict_to_owner(path)?;
         let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
             | OpenFlags::SQLITE_OPEN_CREATE
             | OpenFlags::SQLITE_OPEN_NO_MUTEX;
