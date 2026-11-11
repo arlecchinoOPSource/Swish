@@ -5,6 +5,9 @@ edition = "2024"
 rust-version = "1.90"
 description = "Swish desktop host"
 
+[lib]
+name = "swish_lib"
+
 [workspace]
 members = ["data"]
 
@@ -16,3 +19,8 @@ tauri = { version = "2.12.5", features = [] }
 swish-data = { path = "data" }
 tauri-plugin-dialog = "2.8.4"
 serde = { version = "1.0.229", features = ["derive"] }
+
+[features]
+default = ["standalone"]
+# The standalone application. Off for a host that embeds Swish (see src/lib.rs).
+standalone = []
