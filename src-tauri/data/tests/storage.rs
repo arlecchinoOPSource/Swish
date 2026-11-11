@@ -317,3 +317,49 @@ fn errors_serialize_without_internal_details() {
     assert!(json.get("field").is_none());
     assert!(!json["message"].as_str().unwrap().contains("Invalid"));
 }
+
+#[cfg(unix)]
+mod private_files {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    fn mode(path: &std::path::Path) -> u32 {
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[test]
+    fn a_new_database_folder_and_files_are_owner_only() {
+        let (path, _cleanup) = temp_db("private-new");
+        let mut store = Store::open(&path).unwrap();
+        store
+            .create_project(&swish_data::ProjectInput {
+                name: "Synthetic project".into(),
+                description: String::new(),
+                deadline: "2026-12-31".into(),
+            })
+            .unwrap();
+        assert_eq!(mode(path.parent().unwrap()), 0o700);
+        assert_eq!(mode(&path), 0o600);
+        for suffix in ["-wal", "-shm"] {
+            let side = path.with_file_name(format!("{}{suffix}", swish_data::DATABASE_FILE));
+            assert!(side.exists(), "{suffix} exists while the store is open");
+            assert_eq!(mode(&side), 0o600, "{suffix} is private too");
+        }
+    }
+
+    #[test]
+    fn a_file_made_by_an_earlier_version_is_tightened_on_open() {
+        let (path, _cleanup) = temp_db("private-old");
+        drop(Store::open(&path).unwrap());
+        // What an earlier Swish left behind: default umask modes.
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        std::fs::set_permissions(
+            path.parent().unwrap(),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
+        drop(Store::open(&path).unwrap());
+        assert_eq!(mode(&path), 0o600);
+        assert_eq!(mode(path.parent().unwrap()), 0o700);
+    }
+}
