@@ -45,11 +45,16 @@ export function App() {
   useNativeClose(data.flush);
 
   async function saveProject(id: string | null, input: ProjectInput) {
-    const result = await data.write(() => id ? storage.updateProject(id, input) : storage.createProject(input), upsertProject);
+    // An edit carries the version it started from; if another Swish (or the Unhollowed host) changed the project since, nothing is overwritten.
+    const known = data.state.status === 'ready' && id ? data.state.workspace.projects.find(p => p.id === id)?.updatedAt : undefined;
+    const result = await data.write(() => id ? storage.updateProject(id, input, known) : storage.createProject(input), upsertProject);
+    if (result.error?.code === 'changed') void data.refresh();
     return { error: result.error, id: result.value?.id };
   }
   async function saveReminder(id: string | null, input: ReminderInput) {
-    const result = await data.write(() => id ? storage.updateReminder(id, input) : storage.createReminder(input), upsertReminder);
+    const known = data.state.status === 'ready' && id ? data.state.workspace.reminders.find(r => r.id === id)?.updatedAt : undefined;
+    const result = await data.write(() => id ? storage.updateReminder(id, input, known) : storage.createReminder(input), upsertReminder);
+    if (result.error?.code === 'changed') void data.refresh();
     return { error: result.error, id: result.value?.id };
   }
   async function setCompleted(id: string, completed: boolean) {

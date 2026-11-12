@@ -10,9 +10,10 @@ export interface SwishStorage {
   readonly kind: 'native' | 'preview';
   loadWorkspace(): Promise<Workspace>;
   createProject(input: ProjectInput): Promise<Project>;
-  updateProject(id: string, input: ProjectInput): Promise<Project>;
+  /** `expectedUpdatedAt`: the `updatedAt` the caller last read; if the stored one differs, nothing is saved and a `changed` error is thrown. */
+  updateProject(id: string, input: ProjectInput, expectedUpdatedAt?: string): Promise<Project>;
   createReminder(input: ReminderInput): Promise<Reminder>;
-  updateReminder(id: string, input: ReminderInput): Promise<Reminder>;
+  updateReminder(id: string, input: ReminderInput, expectedUpdatedAt?: string): Promise<Reminder>;
   setReminderCompleted(id: string, completed: boolean): Promise<Reminder>;
   /** Deletes the project and its reminders only if it still has `expectedReminders`. */
   deleteProject(id: string, expectedReminders: number): Promise<DeletedProject>;
@@ -51,9 +52,9 @@ class NativeStorage implements SwishStorage {
   }
   loadWorkspace() { return this.call<Workspace>('load_workspace'); }
   createProject(input: ProjectInput) { return this.call<Project>('create_project', { input }); }
-  updateProject(id: string, input: ProjectInput) { return this.call<Project>('update_project', { id, input }); }
+  updateProject(id: string, input: ProjectInput, expectedUpdatedAt?: string) { return this.call<Project>('update_project', { id, input, expectedUpdatedAt }); }
   createReminder(input: ReminderInput) { return this.call<Reminder>('create_reminder', { input }); }
-  updateReminder(id: string, input: ReminderInput) { return this.call<Reminder>('update_reminder', { id, input }); }
+  updateReminder(id: string, input: ReminderInput, expectedUpdatedAt?: string) { return this.call<Reminder>('update_reminder', { id, input, expectedUpdatedAt }); }
   setReminderCompleted(id: string, completed: boolean) { return this.call<Reminder>('set_reminder_completed', { id, completed }); }
   deleteProject(id: string, expectedReminders: number) { return this.call<DeletedProject>('delete_project', { id, expectedReminders }); }
   deleteReminder(id: string) { return this.call<Reminder>('delete_reminder', { id }); }
@@ -64,6 +65,8 @@ class NativeStorage implements SwishStorage {
   restoreBackup(token: string) { return this.call<RestoreResult>('restore_backup', { token }); }
   undoRestore() { return this.call<Counts>('undo_restore'); }
 }
+
+const changedElsewhere = (entity: string): StorageError => ({ code: 'changed', message: `That ${entity} was changed somewhere else after you opened it. Nothing was saved over it and your edits are still here; saving again replaces the other change.` });
 
 const previewFailure: StorageError = { code: 'storage', message: 'The browser preview simulated a storage failure. Nothing was changed.' };
 
@@ -103,11 +106,12 @@ export class PreviewStorage implements SwishStorage {
     this.data.projects.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt));
     return structuredClone(project);
   }
-  async updateProject(id: string, input: ProjectInput) {
+  async updateProject(id: string, input: ProjectInput, expectedUpdatedAt?: string) {
     const clean = this.cleanProject(input);
     await this.writing();
     const project = this.data.projects.find(p => p.id === id);
     if (!project) throw { code: 'notFound', message: 'That project no longer exists.' } satisfies StorageError;
+    if (expectedUpdatedAt !== undefined && project.updatedAt !== expectedUpdatedAt) throw changedElsewhere('project');
     Object.assign(project, clean, { updatedAt: this.now() });
     this.data.projects.sort((a, b) => a.deadline.localeCompare(b.deadline) || a.createdAt.localeCompare(b.createdAt));
     return structuredClone(project);
@@ -127,11 +131,12 @@ export class PreviewStorage implements SwishStorage {
     this.data.reminders.push(reminder);
     return structuredClone(reminder);
   }
-  async updateReminder(id: string, input: ReminderInput) {
+  async updateReminder(id: string, input: ReminderInput, expectedUpdatedAt?: string) {
     const clean = this.cleanReminder(input);
     await this.writing();
     const reminder = this.data.reminders.find(r => r.id === id);
     if (!reminder) throw { code: 'notFound', message: 'That reminder no longer exists.' } satisfies StorageError;
+    if (expectedUpdatedAt !== undefined && reminder.updatedAt !== expectedUpdatedAt) throw changedElsewhere('reminder');
     Object.assign(reminder, clean, { updatedAt: this.now() });
     return structuredClone(reminder);
   }
