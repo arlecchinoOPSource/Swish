@@ -52,17 +52,28 @@ impl Store {
 
     /// Updates content and assignment. Completion is changed only by `set_completed`.
     pub fn update_reminder(&mut self, id: &str, input: &ReminderInput) -> Result<Reminder, Error> {
+        self.update_reminder_checked(id, input, None)
+    }
+
+    /// Like `update_reminder`, but when `expected_updated_at` is given the edit applies only if the reminder still has that
+    /// `updated_at` (see `Store::update_project_checked`).
+    pub fn update_reminder_checked(
+        &mut self,
+        id: &str,
+        input: &ReminderInput,
+        expected_updated_at: Option<&str>,
+    ) -> Result<Reminder, Error> {
         let id = validate_id(id, Field::Id)?;
         let valid = input.validate()?;
         let now = now_timestamp();
         self.write(|tx| {
             require_project(tx, valid.project_id.as_deref())?;
             let changed = tx.execute(
-                "UPDATE reminders SET project_id = ?2, title = ?3, text = ?4, due_date = ?5, updated_at = ?6 WHERE id = ?1",
-                params![id, valid.project_id, valid.title, valid.text, valid.due_date, now],
+                "UPDATE reminders SET project_id = ?2, title = ?3, text = ?4, due_date = ?5, updated_at = ?6 WHERE id = ?1 AND (?7 IS NULL OR updated_at = ?7)",
+                params![id, valid.project_id, valid.title, valid.text, valid.due_date, now, expected_updated_at],
             )?;
             if changed == 0 {
-                return Err(Error::NotFound { entity: "reminder" });
+                return Err(crate::projects::missing_or_changed(tx, "reminders", "reminder", &id)?);
             }
             select(tx, &id)
         })

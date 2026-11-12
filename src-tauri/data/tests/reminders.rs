@@ -175,3 +175,35 @@ fn reminders_and_moves_survive_restart() {
     drop(store);
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn a_reminder_edit_from_a_stale_read_is_refused_and_keeps_the_newer_change() {
+    use swish_data::ReminderInput;
+    let mut store = Store::open_in_memory().unwrap();
+    let make = |title: &str| ReminderInput {
+        project_id: None,
+        title: title.into(),
+        text: "Synthetic".into(),
+        due_date: None,
+    };
+    let created = store.create_reminder(&make("Original")).unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let newer = store
+        .update_reminder_checked(
+            &created.id,
+            &make("Changed elsewhere"),
+            Some(&created.updated_at),
+        )
+        .unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(5));
+    let stale = store.update_reminder_checked(
+        &created.id,
+        &make("From the old read"),
+        Some(&created.updated_at),
+    );
+    assert!(
+        matches!(stale, Err(swish_data::Error::Changed { .. })),
+        "{stale:?}"
+    );
+    assert_eq!(store.reminder(&created.id).unwrap(), Some(newer));
+}

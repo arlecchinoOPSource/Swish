@@ -75,8 +75,9 @@ pub fn update_project(
     storage: State<'_, Storage>,
     id: String,
     input: ProjectInput,
+    expected_updated_at: Option<String>,
 ) -> Result<Project, ApiError> {
-    storage.with(|store| store.update_project(&id, &input))
+    storage.with(|store| store.update_project_checked(&id, &input, expected_updated_at.as_deref()))
 }
 
 #[tauri::command]
@@ -92,8 +93,9 @@ pub fn update_reminder(
     storage: State<'_, Storage>,
     id: String,
     input: ReminderInput,
+    expected_updated_at: Option<String>,
 ) -> Result<Reminder, ApiError> {
-    storage.with(|store| store.update_reminder(&id, &input))
+    storage.with(|store| store.update_reminder_checked(&id, &input, expected_updated_at.as_deref()))
 }
 
 #[tauri::command]

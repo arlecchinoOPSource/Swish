@@ -23,6 +23,10 @@ export function useWorkspace(storage: SwishStorage) {
     catch (error) { setState({ status: 'error', error: toStorageError(error) }); }
   }, [storage]);
   useEffect(() => { void reload(); }, [reload]);
+  /** Re-reads without showing the loading state, so an open editor and its draft stay where they are. */
+  const refresh = useCallback(async () => {
+    try { setState({ status: 'ready', workspace: await storage.loadWorkspace() }); } catch { /* keep what is shown */ }
+  }, [storage]);
 
   /**
    * Runs writes strictly one after another, in the order they were requested, so a
@@ -55,7 +59,7 @@ export function useWorkspace(storage: SwishStorage) {
   }, []);
   /** Resolves once every write requested so far has finished (used before closing). */
   const flush = useCallback(() => queue.current.then(() => undefined, () => undefined), []);
-  return { state, save, reload, write, flush };
+  return { state, save, reload, refresh, write, flush };
 }
 
 /** Inserts or replaces by ID, keeping the store's project order (deadline, then creation). */
